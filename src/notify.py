@@ -31,6 +31,23 @@ def payment_memo(bill: Any) -> str:
     return f"PHONG {ascii_upper(str(bill.RoomCode))} {period}"
 
 
+def zalo_phone(bill: Any) -> str | None:
+    """Số Zalo của khách trong tháng hóa đơn (ưu tiên ô Zalo, sau đó số điện thoại), dạng 0xxxxxxxxx."""
+    for raw in (getattr(bill, "TenantZaloPhone", None), getattr(bill, "TenantPhone", None)):
+        digits = "".join(ch for ch in str(raw or "") if ch.isdigit())
+        if digits.startswith("84") and len(digits) == 11:
+            digits = "0" + digits[2:]
+        if len(digits) >= 9:
+            return digits
+    return None
+
+
+def zalo_link(bill: Any) -> str | None:
+    """Link mở khung chat Zalo (app Zalo PC/điện thoại hoặc Zalo web) với số của khách."""
+    phone = zalo_phone(bill)
+    return f"https://zalo.me/{phone}" if phone else None
+
+
 def bill_image_filename(bill: Any) -> str:
     return f"{ascii_upper(unit_title(bill)).lower()}-{int(bill.YearNumber)}-{int(bill.MonthNumber):02d}.png"
 

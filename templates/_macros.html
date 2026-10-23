@@ -59,6 +59,17 @@
 {%- if show_property and room.PropertyType not in ("WHOLE_HOUSE", "APARTMENT") -%}{{ room.PropertyName }}{%- endif -%}
 {%- endmacro %}
 
+{# Nút gửi Zalo: copy ảnh hóa đơn + mở khung chat (cần static/zalo.js) #}
+{% macro zalo_button(bill, label="Gửi Zalo", extra_class="btn-primary") -%}
+<button type="button" class="btn {{ extra_class }} btn-zalo" data-zalo-send
+        data-image="{{ url_for('bill_notice_image', bill_id=bill.RoomMonthlyBillId) }}"
+        data-filename="{{ bill|image_filename }}"
+        data-link="{{ bill|zalo_link }}"
+        data-log-url="{{ url_for('log_zalo_sent', bill_id=bill.RoomMonthlyBillId) }}">
+    {{ icon("send") }} {{ label }}
+</button>
+{%- endmacro %}
+
 {% macro status_pill(value) -%}
 <span class="pill pill-{{ (value or '')|lower }}">{{ value|status }}</span>
 {%- endmacro %}

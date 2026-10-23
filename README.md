@@ -14,7 +14,8 @@ Mỗi tháng nhập chỉ số điện/nước, hệ thống tự tính tiền t
 | --- | --- |
 | Tổng quan | Tình trạng từng phòng trong tháng (đã/chưa nhập hóa đơn), tổng cần thu |
 | Nhập điện nước | Chọn phòng, chỉ số cũ tự lấy từ tháng trước, tạm tính trực tiếp, lưu xong tự chuyển phòng tiếp theo |
-| Báo cáo & gửi khách | Biểu đồ 12 tháng, chi tiết từng hóa đơn, tải ảnh gửi Zalo (zip), gửi email hàng loạt |
+| Báo cáo & gửi khách | Biểu đồ 12 tháng, chi tiết từng hóa đơn, tải ảnh (zip), gửi email hàng loạt |
+| Gửi Zalo cả tháng | Bấm "Gửi Zalo" → ảnh hóa đơn được copy + mở khung chat `zalo.me/<số Zalo của khách>` → Ctrl+V, Enter. Đánh dấu phòng đã gửi |
 | Nhà & căn hộ | Thêm/sửa nhà, loại hình, địa chỉ; ngừng quản lý nhà |
 | Phòng & căn | Thêm phòng, đổi tên/chuyển nhà, giá theo giai đoạn (tự tính lại hóa đơn trong giai đoạn) |
 | Khách thuê | Lượt thuê theo ngày vào/ra, giá thỏa thuận riêng |

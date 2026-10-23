@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, month_nav, unit_name, unit_sub, zalo_button with context %}
+
+{% block title %}Gửi Zalo tháng {{ "%02d"|format(month) }}/{{ year }}{% endblock %}
+
+{% block content %}
+<a class="back-link" href="{{ url_for('reports_page', year=year, month=month) }}">{{ icon("back", 16) }} Báo cáo tháng {{ "%02d"|format(month) }}/{{ year }}</a>
+<header class="page-header">
+    <div>
+        <p class="eyebrow">Gửi khách qua Zalo</p>
+        <h1>Tháng {{ "%02d"|format(month) }}/{{ year }}</h1>
+    </div>
+    {{ month_nav("zalo_queue_page", year, month) }}
+</header>
+
+<div class="callout callout-info">
+    {{ icon("send") }}
+    <div>
+        <strong>Cách gửi: bấm “Gửi Zalo” → Zalo mở đúng khung chat của khách → bấm Ctrl+V rồi Enter</strong>
+        <span>Ảnh hóa đơn được copy sẵn. Cần đăng nhập Zalo PC hoặc Zalo web trên máy này. Gửi xong phòng nào sẽ được đánh dấu.</span>
+    </div>
+</div>
+
+{% if not bills %}
+    <div class="empty-card">
+        {{ icon("chart", 28) }}
+        <strong>Tháng này chưa có hóa đơn</strong>
+        <a class="btn btn-primary" href="{{ url_for('bill_form', year=year, month=month) }}">{{ icon("bolt") }} Nhập điện nước</a>
+    </div>
+{% else %}
+    <section class="zalo-list">
+        {% for bill in bills %}
+            {% set link = bill|zalo_link %}
+            <article class="card zalo-item {{ 'is-sent' if bill.RoomMonthlyBillId in sent_ids else '' }} {{ 'no-zalo' if not link else '' }}" data-zalo-item>
+                <a class="zalo-thumb" href="{{ url_for('bill_notice_image', bill_id=bill.RoomMonthlyBillId) }}" target="_blank" title="Xem ảnh">
+                    <img src="{{ url_for('bill_notice_image', bill_id=bill.RoomMonthlyBillId) }}" alt="Ảnh hóa đơn {{ bill|unit_title }}" loading="lazy">
+                </a>
+                <div class="zalo-info">
+                    <div class="zalo-title">
+                        <strong>{{ unit_name(bill) }}</strong>
+                        {% if unit_sub(bill) %}<small class="muted">{{ unit_sub(bill) }}</small>{% endif %}
+                        <span class="sent-badge">{{ icon("check", 13) }} Đã gửi</span>
+                    </div>
+                    <span>{{ bill.TenantNames or "Chưa có khách" }}</span>
+                    <span class="muted">
+                        {% if link %}{{ icon("phone", 13) }} Zalo {{ bill|zalo_phone }}{% else %}<span class="warn-text">{{ icon("alert", 13) }} Chưa có số Zalo / điện thoại</span>{% endif %}
+                    </span>
+                    <strong class="zalo-amount">{{ bill.TotalAmount|money }}</strong>
+                </div>
+                <div class="zalo-actions">
+                    {% if link %}
+                        {{ zalo_button(bill) }}
+                    {% else %}
+                        <a class="btn btn-ghost" href="{{ url_for('tenants_page') }}">{{ icon("edit") }} Nhập số Zalo</a>
+                    {% endif %}
+                </div>
+            </article>
+        {% endfor %}
+    </section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='zalo.js') }}?v=1"></script>
+{% endblock %}

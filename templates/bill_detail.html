@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon with context %}
+{% from "_macros.html" import icon, zalo_button with context %}
 
 {% block title %}{{ bill|unit_title }} · {{ "%02d"|format(bill.MonthNumber) }}/{{ bill.YearNumber }}{% endblock %}
 
@@ -13,10 +13,11 @@
     </div>
     <div class="toolbar">
         <a class="btn btn-ghost" href="{{ url_for('bill_form', year=bill.YearNumber, month=bill.MonthNumber, room_id=bill.RoomId) }}">{{ icon("edit") }} Sửa chỉ số</a>
-        <a class="btn btn-ghost" href="{{ url_for('bill_notice_image', bill_id=bill.RoomMonthlyBillId) }}" target="_blank">{{ icon("image") }} Ảnh gửi Zalo</a>
+        <a class="btn btn-ghost" href="{{ url_for('bill_notice_image', bill_id=bill.RoomMonthlyBillId) }}" target="_blank">{{ icon("image") }} Xem ảnh</a>
         <form method="post" action="{{ url_for('send_bill_email_page', bill_id=bill.RoomMonthlyBillId) }}">
-            <button type="submit" class="btn btn-primary">{{ icon("mail") }} Gửi email</button>
+            <button type="submit" class="btn btn-ghost">{{ icon("mail") }} Gửi email</button>
         </form>
+        {% if bill|zalo_link %}{{ zalo_button(bill) }}{% else %}<a class="btn btn-ghost" href="{{ url_for('tenants_page') }}" title="Khách chưa có số Zalo/điện thoại">{{ icon("alert") }} Nhập số Zalo</a>{% endif %}
     </div>
 </header>
 
@@ -73,4 +74,8 @@
         </div>
     </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='zalo.js') }}?v=1"></script>
 {% endblock %}

@@ -61,14 +61,15 @@
                     <form method="post" action="{{ url_for('export_month_images') }}">
                         <input type="hidden" name="year" value="{{ year }}">
                         <input type="hidden" name="month" value="{{ month }}">
-                        <button type="submit" class="btn btn-ghost">{{ icon("download") }} Tải ảnh gửi Zalo</button>
+                        <button type="submit" class="btn btn-ghost">{{ icon("download") }} Tải ảnh (zip)</button>
                     </form>
                     <form method="post" action="{{ url_for('send_month_email') }}"
                           data-confirm="Gửi email thông báo thanh toán tháng {{ '%02d'|format(month) }}/{{ year }} cho tất cả khách có email?">
                         <input type="hidden" name="year" value="{{ year }}">
                         <input type="hidden" name="month" value="{{ month }}">
-                        <button type="submit" class="btn btn-primary">{{ icon("mail") }} Gửi email cả tháng</button>
+                        <button type="submit" class="btn btn-ghost">{{ icon("mail") }} Gửi email cả tháng</button>
                     </form>
+                    <a class="btn btn-primary" href="{{ url_for('zalo_queue_page', year=year, month=month) }}">{{ icon("send") }} Gửi Zalo cả tháng</a>
                 {% endif %}
             </div>
         </div>

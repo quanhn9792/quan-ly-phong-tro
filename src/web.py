@@ -25,6 +25,8 @@ from .notify import (
     send_bill_email,
     send_test_email,
     unit_title,
+    zalo_link,
+    zalo_phone,
 )
 
 STATUS_LABELS = dict(q.RENTAL_STATUSES)
@@ -152,6 +154,9 @@ def create_app() -> Flask:
         property_type=lambda value: q.PROPERTY_TYPE_LABELS.get(value or "", value or ""),
         unit_title=unit_title,
         payment_memo=payment_memo,
+        zalo_link=zalo_link,
+        image_filename=bill_image_filename,
+        zalo_phone=zalo_phone,
     )
     app.jinja_env.globals.update(shift_month=q.shift_month, today=date.today)
 
@@ -617,6 +622,30 @@ def create_app() -> Flask:
         failed = len(results) - sent
         flash(f"Gửi email tháng {month:02d}/{year}: thành công {sent}, không gửi được {failed}.", "success" if not failed else "error")
         return redirect(url_for("reports_page", year=year, month=month))
+
+    @app.get("/reports/zalo")
+    def zalo_queue_page():
+        year, month = year_month_from_args()
+        bills = q.month_bills(year, month, selected_property_id())
+        sent_ids = {
+            int(item.RoomMonthlyBillId)
+            for item in q.rows(
+                """
+                SELECT DISTINCT l.RoomMonthlyBillId
+                FROM dbo.BillDeliveryLogs AS l
+                INNER JOIN dbo.v_MonthlyRoomBills AS b ON b.RoomMonthlyBillId = l.RoomMonthlyBillId
+                WHERE l.Channel = N'ZALO' AND l.Status = N'SENT' AND b.YearNumber = ? AND b.MonthNumber = ?;
+                """,
+                (year, month),
+            )
+        }
+        return render_template("zalo_send.html", year=year, month=month, bills=bills, sent_ids=sent_ids)
+
+    @app.post("/reports/bills/<int:bill_id>/zalo-sent")
+    def log_zalo_sent(bill_id: int):
+        bill = bill_or_404(bill_id)
+        q.log_bill_delivery(bill_id, "ZALO", zalo_phone(bill), "SENT")
+        return "", 204
 
     @app.post("/reports/export-month-images")
     def export_month_images():
