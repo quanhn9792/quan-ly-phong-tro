@@ -1,0 +1,73 @@
+{% macro icon(name, size=18) -%}
+<svg class="icon" width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+{%- if name == "home" -%}<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/>
+{%- elif name == "door" -%}<path d="M4 21h16"/><path d="M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17"/><circle cx="14.5" cy="12" r="1"/>
+{%- elif name == "users" -%}<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/>
+{%- elif name == "bolt" -%}<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>
+{%- elif name == "edit" -%}<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>
+{%- elif name == "chart" -%}<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/>
+{%- elif name == "send" -%}<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/>
+{%- elif name == "settings" -%}<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+{%- elif name == "chev-left" -%}<path d="m15 18-6-6 6-6"/>
+{%- elif name == "chev-right" -%}<path d="m9 18 6-6-6-6"/>
+{%- elif name == "check" -%}<path d="M20 6 9 17l-5-5"/>
+{%- elif name == "plus" -%}<path d="M12 5v14"/><path d="M5 12h14"/>
+{%- elif name == "mail" -%}<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>
+{%- elif name == "image" -%}<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>
+{%- elif name == "download" -%}<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>
+{%- elif name == "back" -%}<path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>
+{%- elif name == "phone" -%}<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>
+{%- elif name == "calendar" -%}<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>
+{%- elif name == "drop" -%}<path d="M12 2.7 6.3 9a7.5 7.5 0 1 0 11.4 0z"/>
+{%- elif name == "wallet" -%}<path d="M20 7H5a2 2 0 0 1 0-4h13v4"/><path d="M3 5v14a2 2 0 0 0 2 2h15V7"/><circle cx="16" cy="14" r="1.2"/>
+{%- elif name == "database" -%}<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>
+{%- elif name == "alert" -%}<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>
+{%- elif name == "building" -%}<rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01"/>
+{%- elif name == "map" -%}<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>
+{%- elif name == "x" -%}<path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+{%- endif -%}
+</svg>
+{%- endmacro %}
+
+{# Bộ chuyển tháng: ‹ Tháng 10/2026 › kèm nút "Tháng này" #}
+{% macro month_nav(endpoint, year, month) -%}
+{% set py, pm = shift_month(year, month, -1) %}
+{% set ny, nm = shift_month(year, month, 1) %}
+{% set now = today() %}
+<div class="month-nav">
+    <a class="icon-btn" href="{{ url_for(endpoint, year=py, month=pm, **kwargs) }}" title="Tháng trước" aria-label="Tháng trước">{{ icon("chev-left") }}</a>
+    <form method="get" class="month-nav-picker">
+        {% for key, value in kwargs.items() %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+        <select name="month" onchange="this.form.submit()" aria-label="Tháng">
+            {% for m in range(1, 13) %}<option value="{{ m }}" {{ "selected" if m == month else "" }}>Tháng {{ "%02d"|format(m) }}</option>{% endfor %}
+        </select>
+        <input type="number" name="year" min="2000" max="2100" value="{{ year }}" onchange="this.form.submit()" aria-label="Năm">
+    </form>
+    <a class="icon-btn" href="{{ url_for(endpoint, year=ny, month=nm, **kwargs) }}" title="Tháng sau" aria-label="Tháng sau">{{ icon("chev-right") }}</a>
+    {% if year != now.year or month != now.month %}
+        <a class="btn btn-ghost btn-sm" href="{{ url_for(endpoint, year=now.year, month=now.month, **kwargs) }}">Tháng này</a>
+    {% endif %}
+</div>
+{%- endmacro %}
+
+{# Tên hiển thị của 1 đơn vị cho thuê: mã phòng, hoặc tên nhà nếu cho thuê nguyên căn #}
+{% macro unit_name(room) -%}
+{{ room.PropertyName if room.PropertyType in ("WHOLE_HOUSE", "APARTMENT") else room.RoomCode }}
+{%- endmacro %}
+
+{% macro unit_sub(room) -%}
+{%- if show_property and room.PropertyType not in ("WHOLE_HOUSE", "APARTMENT") -%}{{ room.PropertyName }}{%- endif -%}
+{%- endmacro %}
+
+{% macro status_pill(value) -%}
+<span class="pill pill-{{ (value or '')|lower }}">{{ value|status }}</span>
+{%- endmacro %}
+
+{# Ô nhập tiền: hiện số đã định dạng ngay bên dưới khi gõ #}
+{% macro money_field(label, name, value="", placeholder="", required=False, hint="") -%}
+<label class="field">
+    <span class="field-label">{{ label }}</span>
+    <input name="{{ name }}" value="{{ value }}" inputmode="decimal" data-money placeholder="{{ placeholder }}" {{ "required" if required else "" }} autocomplete="off">
+    <small class="field-hint" data-money-hint>{{ hint }}</small>
+</label>
+{%- endmacro %}

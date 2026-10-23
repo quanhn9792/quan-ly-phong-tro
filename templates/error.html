@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon with context %}
+
+{% block title %}Lỗi kết nối{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">Database</p>
+        <h1>Không kết nối được SQL Server</h1>
+    </div>
+</header>
+<section class="card narrow">
+    <div class="card-body form-stack">
+        <div class="callout callout-warn">
+            {{ icon("alert") }}
+            <div>
+                <strong>Có thể LocalDB chưa chạy</strong>
+                <span>Mở PowerShell và chạy: <code>SqlLocalDB start QuanLyPhongTro2025</code>, sau đó tải lại trang.</span>
+            </div>
+        </div>
+        <pre class="error-text">{{ error }}</pre>
+        <form method="post" action="{{ url_for('init_db') }}">
+            <button type="submit" class="btn btn-ghost">{{ icon("database") }} Thử khởi tạo database</button>
+        </form>
+    </div>
+</section>
+{% endblock %}

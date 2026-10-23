@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, unit_name, unit_sub with context %}
+
+{% block title %}Báo cáo{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">Báo cáo & gửi khách</p>
+        <h1>Năm {{ year }}</h1>
+    </div>
+    <div class="month-nav">
+        <a class="icon-btn" href="{{ url_for('reports_page', year=year - 1, month=month) }}" aria-label="Năm trước">{{ icon("chev-left") }}</a>
+        <span class="month-nav-label">{{ year }}</span>
+        <a class="icon-btn" href="{{ url_for('reports_page', year=year + 1, month=month) }}" aria-label="Năm sau">{{ icon("chev-right") }}</a>
+    </div>
+</header>
+
+{% set totals = month_summaries|map(attribute="TotalAmount")|list %}
+{% set max_total = totals|max if totals else 0 %}
+{% set active_months = month_summaries|selectattr("BillCount")|list|length %}
+<section class="stats">
+    <div class="stat stat-accent">
+        <span class="stat-label">{{ icon("wallet") }} Tổng cần thu cả năm</span>
+        <strong class="stat-value">{{ year_total|money }}</strong>
+        <span class="stat-sub">{{ active_months }} tháng có hóa đơn</span>
+    </div>
+    <div class="stat">
+        <span class="stat-label">{{ icon("chart") }} Trung bình mỗi tháng</span>
+        <strong class="stat-value">{{ (year_total / active_months if active_months else 0)|money }}</strong>
+        <span class="stat-sub">tính trên các tháng có hóa đơn</span>
+    </div>
+</section>
+
+<section class="section">
+    <div class="section-head"><h2>Theo tháng</h2><span class="muted">Bấm vào một tháng để xem chi tiết</span></div>
+    <div class="month-bars">
+        {% for item in month_summaries %}
+            {% set pct = (item.TotalAmount / max_total * 100) if max_total else 0 %}
+            <a class="month-bar {{ 'is-selected' if month == item.MonthNumber else '' }} {{ 'is-empty' if not item.BillCount else '' }}"
+               href="{{ url_for('reports_page', year=year, month=item.MonthNumber) }}">
+                <span class="month-bar-label">T{{ item.MonthNumber }}</span>
+                <span class="month-bar-track"><span style="height: {{ pct }}%"></span></span>
+                <strong>{{ (item.TotalAmount / 1000000)|round(1) if item.BillCount else "–" }}{% if item.BillCount %}<small>tr</small>{% endif %}</strong>
+                <em>{{ item.BillCount }} HĐ</em>
+            </a>
+        {% endfor %}
+    </div>
+</section>
+
+{% if month %}
+    <section class="card">
+        <div class="card-head card-head-wrap">
+            <div>
+                <h2>Chi tiết tháng {{ "%02d"|format(month) }}/{{ year }}</h2>
+                <span class="muted">{{ bills|length }} hóa đơn · tổng <strong class="text-strong">{{ total|money }}</strong></span>
+            </div>
+            <div class="toolbar">
+                <a class="btn btn-ghost" href="{{ url_for('bill_form', year=year, month=month) }}">{{ icon("bolt") }} Nhập / sửa điện nước</a>
+                {% if bills %}
+                    <form method="post" action="{{ url_for('export_month_images') }}">
+                        <input type="hidden" name="year" value="{{ year }}">
+                        <input type="hidden" name="month" value="{{ month }}">
+                        <button type="submit" class="btn btn-ghost">{{ icon("download") }} Tải ảnh gửi Zalo</button>
+                    </form>
+                    <form method="post" action="{{ url_for('send_month_email') }}"
+                          data-confirm="Gửi email thông báo thanh toán tháng {{ '%02d'|format(month) }}/{{ year }} cho tất cả khách có email?">
+                        <input type="hidden" name="year" value="{{ year }}">
+                        <input type="hidden" name="month" value="{{ month }}">
+                        <button type="submit" class="btn btn-primary">{{ icon("mail") }} Gửi email cả tháng</button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+        {% if bills %}
+            <div class="table-wrap">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Phòng / căn</th>
+                            <th>Khách thuê</th>
+                            <th class="num">Thuê + DV + giặt</th>
+                            <th class="num">Điện</th>
+                            <th class="num">Nước</th>
+                            <th class="num">Tổng</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bill in bills %}
+                            <tr class="row-link" onclick="location.href='{{ url_for('bill_detail_page', bill_id=bill.RoomMonthlyBillId) }}'">
+                                <td><strong class="room-code-sm">{{ unit_name(bill) }}</strong>{% if unit_sub(bill) %}<small class="cell-sub">{{ unit_sub(bill) }}</small>{% endif %}</td>
+                                <td>
+                                    {{ bill.TenantNames or "—" }}
+                                    <small class="cell-sub">{{ bill.TenantEmail or "Chưa có email" }}</small>
+                                </td>
+                                <td class="num">
+                                    {{ (bill.RentAmount + bill.ServiceFee + bill.LaundryFee)|money }}
+                                </td>
+                                <td class="num">
+                                    {{ bill.ElectricityAmount|money }}
+                                    <small class="cell-sub">{{ bill.ElectricUsage|num }} kWh</small>
+                                </td>
+                                <td class="num">
+                                    {{ bill.WaterAmount|money }}
+                                    <small class="cell-sub">{{ bill.WaterUsage|num }} m³</small>
+                                </td>
+                                <td class="num"><strong>{{ bill.TotalAmount|money }}</strong></td>
+                                <td class="num">
+                                    <a class="btn btn-ghost btn-sm" href="{{ url_for('bill_detail_page', bill_id=bill.RoomMonthlyBillId) }}">{{ icon("send", 14) }} Gửi khách</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="5">Tổng tháng</td>
+                            <td class="num"><strong>{{ total|money }}</strong></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-card flat">
+                {{ icon("chart", 28) }}
+                <strong>Chưa có hóa đơn nào cho tháng này</strong>
+                <a class="btn btn-primary" href="{{ url_for('bill_form', year=year, month=month) }}">{{ icon("bolt") }} Nhập điện nước</a>
+            </div>
+        {% endif %}
+    </section>
+{% else %}
+    <div class="empty-card">
+        {{ icon("calendar", 28) }}
+        <strong>Chọn một tháng ở trên để xem chi tiết từng phòng</strong>
+    </div>
+{% endif %}
+{% endblock %}

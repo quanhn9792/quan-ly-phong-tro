@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, month_nav, status_pill, unit_name, unit_sub with context %}
+
+{% block title %}Nhập điện nước{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">Nhập điện nước</p>
+        <h1>Hóa đơn tháng {{ "%02d"|format(month) }}/{{ year }}</h1>
+    </div>
+    {% if selected_room %}
+        {{ month_nav("bill_form", year, month, room_id=selected_room.RoomId) }}
+    {% else %}
+        {{ month_nav("bill_form", year, month) }}
+    {% endif %}
+</header>
+
+<section class="section">
+    <div class="section-head">
+        <h2>1. Chọn phòng</h2>
+        <span class="muted">{{ billed_room_ids|length }}/{{ rooms|length }} phòng đã nhập</span>
+    </div>
+    <div class="room-picker">
+        {% for room in rooms %}
+            {% set done = room.RoomId in billed_room_ids %}
+            <a href="{{ url_for('bill_form', year=year, month=month, room_id=room.RoomId) }}"
+               class="room-chip {{ 'is-selected' if selected_room and selected_room.RoomId == room.RoomId else '' }} {{ 'is-done' if done else '' }}">
+                <strong>{{ unit_name(room) }}</strong>
+                {% if unit_sub(room) %}<small>{{ unit_sub(room) }}</small>{% endif %}
+                <span>{{ room.TenantNames or room.RentalStatus|status }}</span>
+                {% if done %}<i class="chip-tick" title="Đã nhập">{{ icon("check", 12) }}</i>{% endif %}
+            </a>
+        {% endfor %}
+    </div>
+</section>
+
+{% if not selected_room %}
+    <div class="empty-card">
+        {{ icon("door", 32) }}
+        <strong>Chọn một phòng ở trên để nhập chỉ số</strong>
+        <span>Chỉ số cũ sẽ được lấy tự động từ tháng trước.</span>
+    </div>
+{% else %}
+    {% if not selected_contract and selected_room.RentalStatus != "OCCUPIED" %}
+        <div class="callout callout-warn">
+            {{ icon("alert") }}
+            <div>
+                <strong>Phòng không có khách thuê trong tháng này</strong>
+                <span>Tiền phòng, phí dịch vụ và máy giặt sẽ tính 0 VND — chỉ tính điện nước.</span>
+            </div>
+        </div>
+    {% elif not selected_contract %}
+        <div class="callout callout-info">
+            {{ icon("users") }}
+            <div>
+                <strong>Phòng đang thuê nhưng chưa có lượt thuê khớp tháng này</strong>
+                <span>Hệ thống đang dùng giá mặc định của phòng.</span>
+            </div>
+            <a class="btn btn-ghost" href="{{ url_for('tenants_page') }}">Nhập khách thuê</a>
+        </div>
+    {% endif %}
+
+    <div class="bill-layout">
+        <section class="card">
+            <div class="card-head">
+                <div>
+                    <h2>2. Nhập chỉ số · {{ selected_room|unit_title }}</h2>
+                    <span class="muted">
+                        {{ selected_contract.FullName if selected_contract else "Chưa có khách" }}
+                        {% if selected_contract and selected_contract.MoveInDate %} · thuê từ {{ selected_contract.MoveInDate|vndate }}{% endif %}
+                    </span>
+                </div>
+                {% if existing_bill %}
+                    <span class="pill pill-occupied">{{ icon("edit", 14) }} Đang sửa hóa đơn đã có</span>
+                {% else %}
+                    {{ status_pill(selected_room.RentalStatus) }}
+                {% endif %}
+            </div>
+
+            <form method="post" id="bill-form" class="card-body"
+                  data-rent="{{ charge_rent|money_input }}" data-service="{{ charge_service|money_input }}"
+                  data-laundry="{{ charge_laundry|money_input }}"
+                  data-eprice="{{ charge_electricity_price|money_input }}" data-wprice="{{ charge_water_price|money_input }}">
+                <input type="hidden" name="room_id" value="{{ selected_room.RoomId }}">
+                <input type="hidden" name="month" value="{{ month }}">
+                <input type="hidden" name="year" value="{{ year }}">
+
+                {% set e_old = existing_bill.ElectricOld if existing_bill else (prev.ElectricNew if prev else None) %}
+                {% set w_old = existing_bill.WaterOld if existing_bill else (prev.WaterNew if prev else None) %}
+
+                <div class="meter meter-electric">
+                    <div class="meter-title">{{ icon("bolt") }} Điện <small>{{ charge_electricity_price|money }}/kWh</small></div>
+                    <label class="field">
+                        <span class="field-label">Chỉ số cũ</span>
+                        <input name="electric_old" id="electric-old" inputmode="decimal" value="{{ e_old|money_input if e_old is not none else '' }}" placeholder="0" autocomplete="off">
+                        <small class="field-hint">{{ "Lấy từ tháng trước" if prev and not existing_bill else "" }}</small>
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Chỉ số mới</span>
+                        <input name="electric_new" id="electric-new" inputmode="decimal" required autofocus
+                               value="{{ existing_bill.ElectricNew|money_input if existing_bill else '' }}" autocomplete="off">
+                        <small class="field-hint" id="electric-usage">&nbsp;</small>
+                    </label>
+                </div>
+
+                <div class="meter meter-water">
+                    <div class="meter-title">{{ icon("drop") }} Nước <small>{{ charge_water_price|money }}/m³</small></div>
+                    <label class="field">
+                        <span class="field-label">Chỉ số cũ</span>
+                        <input name="water_old" id="water-old" inputmode="decimal" value="{{ w_old|money_input if w_old is not none else '' }}" placeholder="0" autocomplete="off">
+                        <small class="field-hint">{{ "Lấy từ tháng trước" if prev and not existing_bill else "" }}</small>
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Chỉ số mới</span>
+                        <input name="water_new" id="water-new" inputmode="decimal" required
+                               value="{{ existing_bill.WaterNew|money_input if existing_bill else '' }}" autocomplete="off">
+                        <small class="field-hint" id="water-usage">&nbsp;</small>
+                    </label>
+                </div>
+
+                <label class="field">
+                    <span class="field-label">Ghi chú (không bắt buộc)</span>
+                    <input name="note" maxlength="500" value="{{ existing_bill.Note or '' if existing_bill else '' }}">
+                </label>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn-lg">{{ icon("check") }} {{ "Lưu thay đổi" if existing_bill else "Lưu & sang phòng tiếp" }}</button>
+                    {% if existing_bill %}
+                        <a class="btn btn-ghost" href="{{ url_for('bill_detail_page', bill_id=existing_bill.RoomMonthlyBillId) }}">Xem hóa đơn</a>
+                    {% endif %}
+                </div>
+            </form>
+        </section>
+
+        <aside class="card receipt" aria-live="polite">
+            <div class="card-head"><h2>Tạm tính</h2></div>
+            <div class="receipt-body">
+                <div class="receipt-line"><span>Tiền phòng</span><strong>{{ charge_rent|money }}</strong></div>
+                <div class="receipt-line"><span>Phí dịch vụ</span><strong>{{ charge_service|money }}</strong></div>
+                <div class="receipt-line"><span>Máy giặt chung</span><strong>{{ charge_laundry|money }}</strong></div>
+                <div class="receipt-line"><span>Tiền điện <em id="r-e-usage"></em></span><strong id="r-e-amount">—</strong></div>
+                <div class="receipt-line"><span>Tiền nước <em id="r-w-usage"></em></span><strong id="r-w-amount">—</strong></div>
+                <div class="receipt-total"><span>Tổng cộng</span><strong id="r-total">—</strong></div>
+                <p class="receipt-note">Giá lấy theo giai đoạn đơn giá / hợp đồng thuê của phòng cho tháng {{ "%02d"|format(month) }}/{{ year }}.</p>
+            </div>
+        </aside>
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (() => {
+        const form = document.getElementById("bill-form");
+        if (!form) return;
+        const num = (v) => window.parseVnNumber(v);
+        const d = form.dataset;
+        const fixed = num(d.rent) + num(d.service) + num(d.laundry);
+        const $ = (id) => document.getElementById(id);
+        const fmt = window.formatVnd;
+        const fmtNum = (n) => n.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+
+        const usage = (oldId, newId, hintId) => {
+            const o = num($(oldId).value) ?? 0;
+            const n = num($(newId).value);
+            const hint = $(hintId);
+            if (n === null) { hint.textContent = " "; hint.classList.remove("is-error"); return null; }
+            if (n < o) { hint.textContent = "Chỉ số mới phải ≥ chỉ số cũ"; hint.classList.add("is-error"); return null; }
+            hint.classList.remove("is-error");
+            return n - o;
+        };
+
+        const update = () => {
+            const eu = usage("electric-old", "electric-new", "electric-usage");
+            const wu = usage("water-old", "water-new", "water-usage");
+            const ea = eu === null ? null : eu * num(d.eprice);
+            const wa = wu === null ? null : wu * num(d.wprice);
+            if (eu !== null) $("electric-usage").textContent = "Dùng " + fmtNum(eu) + " kWh";
+            if (wu !== null) $("water-usage").textContent = "Dùng " + fmtNum(wu) + " m³";
+            $("r-e-usage").textContent = eu === null ? "" : "(" + fmtNum(eu) + " kWh)";
+            $("r-w-usage").textContent = wu === null ? "" : "(" + fmtNum(wu) + " m³)";
+            $("r-e-amount").textContent = ea === null ? "—" : fmt(ea);
+            $("r-w-amount").textContent = wa === null ? "—" : fmt(wa);
+            $("r-total").textContent = fmt(fixed + (ea ?? 0) + (wa ?? 0));
+        };
+        form.addEventListener("input", update);
+        update();
+    })();
+</script>
+{% endblock %}

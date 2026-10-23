@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, month_nav, status_pill, unit_name, unit_sub with context %}
+
+{% block title %}Tổng quan{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">Tổng quan</p>
+        <h1>Tháng {{ "%02d"|format(month) }}/{{ year }}</h1>
+    </div>
+    {{ month_nav("dashboard", year, month) }}
+</header>
+
+{% set billed = bills|length %}
+{% set pending = rooms|rejectattr("RoomId", "in", bills_by_room)|list %}
+<section class="stats">
+    <div class="stat stat-accent">
+        <span class="stat-label">{{ icon("wallet") }} Tổng cần thu</span>
+        <strong class="stat-value">{{ total|money }}</strong>
+        <span class="stat-sub">{{ billed }} hóa đơn đã nhập</span>
+    </div>
+    <div class="stat">
+        <span class="stat-label">{{ icon("bolt") }} Tiến độ nhập hóa đơn</span>
+        <strong class="stat-value">{{ billed }}<small>/{{ rooms_count }} phòng</small></strong>
+        <div class="progress"><span style="width: {{ (billed / rooms_count * 100) if rooms_count else 0 }}%"></span></div>
+    </div>
+    <div class="stat">
+        <span class="stat-label">{{ icon("door") }} Phòng đang thuê</span>
+        <strong class="stat-value">{{ occupied_count }}<small>/{{ rooms_count }} phòng</small></strong>
+        <span class="stat-sub">{{ rooms_count - occupied_count }} phòng trống / khác</span>
+    </div>
+</section>
+
+{% if pending %}
+    <div class="callout callout-warn">
+        {{ icon("alert") }}
+        <div>
+            <strong>Còn {{ pending|length }} phòng chưa nhập chỉ số điện nước</strong>
+            <span>{% for room in pending %}{{ unit_name(room) }}{{ ", " if not loop.last }}{% endfor %}</span>
+        </div>
+        <a class="btn btn-primary" href="{{ url_for('bill_form', year=year, month=month, room_id=pending[0].RoomId) }}">{{ icon("bolt") }} Nhập ngay</a>
+    </div>
+{% elif rooms %}
+    <div class="callout callout-ok">
+        {{ icon("check") }}
+        <div>
+            <strong>Đã nhập đủ hóa đơn cho tất cả phòng</strong>
+            <span>Bước tiếp theo: gửi thông báo thanh toán cho khách.</span>
+        </div>
+        <a class="btn btn-primary" href="{{ url_for('reports_page', year=year, month=month) }}">{{ icon("send") }} Gửi khách</a>
+    </div>
+{% endif %}
+
+{% if not configured_month %}
+    <div class="callout callout-info">
+        {{ icon("calendar") }}
+        <div>
+            <strong>Tháng này chưa có đơn giá dự phòng</strong>
+            <span>Không sao nếu phòng đã có đơn giá điện nước riêng. Khi lưu hóa đơn, hệ thống tự tạo tháng.</span>
+        </div>
+        <a class="btn btn-ghost" href="{{ url_for('months_page', year=year, month=month) }}">Cấu hình</a>
+    </div>
+{% endif %}
+
+{% if not rooms %}
+    <div class="empty-card">
+        {{ icon("building", 32) }}
+        <strong>Chưa có phòng/căn nào để thu tiền</strong>
+        <span>Thêm nhà (nhà trọ, nhà nguyên căn, căn hộ…) rồi thêm phòng cho nhà đó.</span>
+        <a class="btn btn-primary" href="{{ url_for('properties_page') }}">{{ icon("plus") }} Thêm nhà</a>
+    </div>
+{% endif %}
+
+<section class="section">
+    <div class="section-head">
+        <h2>Các phòng / căn trong tháng</h2>
+        <a class="link" href="{{ url_for('reports_page', year=year, month=month) }}">Xem báo cáo chi tiết {{ icon("chev-right", 16) }}</a>
+    </div>
+    <div class="room-tiles">
+        {% for room in rooms %}
+            {% set bill = bills_by_room.get(room.RoomId) %}
+            {% if bill %}
+                <a class="room-tile is-done" href="{{ url_for('bill_detail_page', bill_id=bill.RoomMonthlyBillId) }}">
+                    <div class="room-tile-head">
+                        <span class="room-code">{{ unit_name(room) }}</span>
+                        <span class="tick">{{ icon("check", 14) }} Đã nhập</span>
+                    </div>
+                    {% if unit_sub(room) %}<span class="room-property">{{ unit_sub(room) }}</span>{% endif %}
+                    <span class="room-tenant">{{ room.TenantNames or "Chưa có khách" }}</span>
+                    <strong class="room-amount">{{ bill.TotalAmount|money }}</strong>
+                    <span class="room-meta">
+                        {{ icon("bolt", 14) }} {{ bill.ElectricUsage|num }} kWh
+                        <span class="dot"></span>
+                        {{ icon("drop", 14) }} {{ bill.WaterUsage|num }} m³
+                    </span>
+                </a>
+            {% else %}
+                <a class="room-tile is-pending" href="{{ url_for('bill_form', year=year, month=month, room_id=room.RoomId) }}">
+                    <div class="room-tile-head">
+                        <span class="room-code">{{ unit_name(room) }}</span>
+                        {{ status_pill(room.RentalStatus) }}
+                    </div>
+                    {% if unit_sub(room) %}<span class="room-property">{{ unit_sub(room) }}</span>{% endif %}
+                    <span class="room-tenant">{{ room.TenantNames or "Chưa có khách" }}</span>
+                    <strong class="room-amount muted">Chưa nhập</strong>
+                    <span class="room-meta cta">{{ icon("plus", 14) }} Nhập chỉ số điện nước</span>
+                </a>
+            {% endif %}
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

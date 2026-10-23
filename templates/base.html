@@ -1,0 +1,120 @@
+{% from "_macros.html" import icon with context %}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Quản lý phòng trọ{% endblock %} · Quản lý cho thuê</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f766e'/%3E%3Cpath d='M8 15 16 8l8 7v9H8z' fill='white'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=3">
+</head>
+<body>
+    {% set endpoint = request.endpoint %}
+    {% set nav_groups = [
+        ("Hằng tháng", [
+            ("dashboard", "Tổng quan", "home", ["dashboard"]),
+            ("bill_form", "Nhập điện nước", "bolt", ["bill_form"]),
+            ("reports_page", "Báo cáo & gửi khách", "chart", ["reports_page", "bill_detail_page"]),
+        ]),
+        ("Quản lý", [
+            ("properties_page", "Nhà & căn hộ", "building", ["properties_page"]),
+            ("rooms_page", "Phòng & căn", "door", ["rooms_page"]),
+            ("tenants_page", "Khách thuê", "users", ["tenants_page", "update_tenant", "end_tenant"]),
+        ]),
+        ("Cài đặt", [
+            ("months_page", "Đơn giá dự phòng", "calendar", ["months_page"]),
+            ("payment_settings_page", "QR & email", "settings", ["payment_settings_page"]),
+        ]),
+    ] %}
+    <aside class="sidebar">
+        <a class="brand" href="{{ url_for('dashboard') }}">
+            <span class="brand-mark">{{ icon("home", 20) }}</span>
+            <span class="brand-text">
+                <strong>Cho thuê</strong>
+                <small>{{ current_property.PropertyName if current_property else 'Quản lý thu tiền' }}</small>
+            </span>
+        </a>
+        {% if all_properties|length > 1 %}
+            <form method="post" action="{{ url_for('select_property') }}" class="property-switch">
+                <label class="field">
+                    <span class="field-label">Đang xem</span>
+                    <select name="property_id" onchange="this.form.submit()">
+                        <option value="">Tất cả nhà ({{ all_properties|length }})</option>
+                        {% for p in all_properties %}
+                            <option value="{{ p.PropertyId }}" {{ "selected" if current_property and current_property.PropertyId == p.PropertyId else "" }}>{{ p.PropertyName }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <noscript><button type="submit" class="btn btn-ghost btn-sm">Chọn</button></noscript>
+            </form>
+        {% endif %}
+        <nav class="nav" aria-label="Điều hướng chính">
+            {% for group_label, items in nav_groups %}
+                <div class="nav-group">
+                    <span class="nav-group-label">{{ group_label }}</span>
+                    {% for target, label, icon_name, active_on in items %}
+                        <a href="{{ url_for(target) }}" class="nav-link {{ 'active' if endpoint in active_on else '' }}">
+                            {{ icon(icon_name) }}<span>{{ label }}</span>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        </nav>
+    </aside>
+
+    <main class="page">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-stack" role="status">
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">
+                            {{ icon("check" if category == "success" else "alert") }}
+                            <span>{{ message }}</span>
+                            <button type="button" class="flash-close" aria-label="Đóng" onclick="this.parentElement.remove()">{{ icon("x", 16) }}</button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        // Hiện số tiền đã định dạng dưới các ô nhập tiền (vd: 5000000 -> 5.000.000 VND)
+        (() => {
+            const parse = (raw) => {
+                let v = (raw || "").replace(/\s/g, "");
+                if (!v) return null;
+                if (v.includes(",") && v.includes(".")) {
+                    v = v.lastIndexOf(",") > v.lastIndexOf(".") ? v.replace(/\./g, "").replace(",", ".") : v.replace(/,/g, "");
+                } else if (/^\d{1,3}([.,]\d{3})+$/.test(v)) {
+                    v = v.replace(/[.,]/g, "");
+                } else {
+                    v = v.replace(",", ".");
+                }
+                const n = Number(v);
+                return Number.isFinite(n) ? n : null;
+            };
+            window.parseVnNumber = parse;
+            window.formatVnd = (n) => Math.round(n).toLocaleString("vi-VN") + " VND";
+            document.querySelectorAll("[data-money]").forEach((input) => {
+                const hint = input.parentElement.querySelector("[data-money-hint]");
+                if (!hint) return;
+                const fallback = hint.textContent;
+                const update = () => {
+                    const n = parse(input.value);
+                    hint.textContent = n === null ? fallback : "= " + window.formatVnd(n);
+                };
+                input.addEventListener("input", update);
+                update();
+            });
+            document.querySelectorAll("form[data-confirm]").forEach((form) => {
+                form.addEventListener("submit", (event) => {
+                    if (!confirm(form.dataset.confirm)) event.preventDefault();
+                });
+            });
+        })();
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

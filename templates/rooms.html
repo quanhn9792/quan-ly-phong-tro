@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, status_pill, money_field, unit_name with context %}
+
+{% block title %}Phòng & căn{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">Quản lý</p>
+        <h1>Phòng & căn{% if current_property %} · {{ current_property.PropertyName }}{% endif %}</h1>
+    </div>
+</header>
+
+{% if not all_properties %}
+    <div class="empty-card">
+        {{ icon("building", 32) }}
+        <strong>Chưa có nhà nào</strong>
+        <span>Hãy thêm nhà trước, sau đó thêm phòng/căn cho nhà đó.</span>
+        <a class="btn btn-primary" href="{{ url_for('properties_page') }}">{{ icon("plus") }} Thêm nhà</a>
+    </div>
+{% else %}
+<details class="card add-card" {{ "open" if not rooms else "" }}>
+    <summary class="add-card-summary">{{ icon("plus") }} Thêm phòng / căn mới</summary>
+    <form method="post" action="{{ url_for('create_room') }}" class="form-stack card-body">
+        <div class="form-grid-3">
+            <label class="field">
+                <span class="field-label">Thuộc nhà *</span>
+                <select name="property_id" required>
+                    {% for p in all_properties %}
+                        <option value="{{ p.PropertyId }}" {{ "selected" if current_property and current_property.PropertyId == p.PropertyId else "" }}>{{ p.PropertyName }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="field">
+                <span class="field-label">Mã phòng / căn *</span>
+                <input name="room_code" maxlength="20" required placeholder="VD: 601, A2, Tầng 3">
+            </label>
+            <label class="field">
+                <span class="field-label">Tên hiển thị</span>
+                <input name="room_name" maxlength="100" placeholder="Trống = “Phòng + mã”">
+            </label>
+            {{ money_field("Tiền thuê / tháng *", "rent_amount", "", required=True) }}
+            {{ money_field("Phí dịch vụ", "service_fee", "", "Trống = 0") }}
+            {{ money_field("Máy giặt chung", "laundry_fee", "", "Trống = 0") }}
+            {{ money_field("Điện / kWh *", "electricity_unit_price", "4000", required=True) }}
+            {{ money_field("Nước / m³ *", "water_unit_price", "25000", required=True) }}
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ icon("plus") }} Thêm phòng</button>
+        </div>
+    </form>
+</details>
+
+{% for property_name, group in rooms|groupby("PropertyName") %}
+<section class="section">
+    {% if not current_property %}
+        <div class="section-head"><h2>{{ icon("building") }} {{ property_name }} <span class="count">{{ group|length }}</span></h2></div>
+    {% endif %}
+    <div class="room-cards">
+    {% for room in group %}
+        {% set periods = price_periods_by_room.get(room.RoomId, []) %}
+        <article class="card room-card">
+            <div class="room-card-top">
+                <div>
+                    <span class="room-code">{{ unit_name(room) }}</span>
+                    <span class="muted">{{ room.TenantNames or "Chưa có khách thuê" }}</span>
+                </div>
+                {{ status_pill(room.RentalStatus) }}
+            </div>
+
+            <dl class="price-list">
+                <div><dt>Tiền thuê</dt><dd>{{ room.RentAmount|money }}</dd></div>
+                <div><dt>Dịch vụ</dt><dd>{{ room.DefaultServiceFee|money }}</dd></div>
+                <div><dt>Máy giặt</dt><dd>{{ room.DefaultLaundryFee|money }}</dd></div>
+                <div><dt>{{ icon("bolt", 14) }} Điện</dt><dd>{{ room.DefaultElectricityUnitPrice|money }}<small>/kWh</small></dd></div>
+                <div><dt>{{ icon("drop", 14) }} Nước</dt><dd>{{ room.DefaultWaterUnitPrice|money }}<small>/m³</small></dd></div>
+            </dl>
+
+            <details class="disclosure">
+                <summary class="btn btn-ghost btn-block">{{ icon("edit", 16) }} Sửa giá / trạng thái</summary>
+                <form method="post" class="form-stack">
+                    <input type="hidden" name="room_id" value="{{ room.RoomId }}">
+                    <div class="form-grid-2">
+                        {{ money_field("Tiền thuê", "rent_amount", room.RentAmount|money_input, required=True) }}
+                        {{ money_field("Phí dịch vụ", "service_fee", room.DefaultServiceFee|money_input, "Trống = 0") }}
+                        {{ money_field("Máy giặt chung", "laundry_fee", room.DefaultLaundryFee|money_input, "Trống = 0") }}
+                        <label class="field">
+                            <span class="field-label">Trạng thái</span>
+                            <select name="rental_status">
+                                {% for value, label in rental_statuses %}
+                                    <option value="{{ value }}" {{ "selected" if room.RentalStatus == value else "" }}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        {{ money_field("Điện / kWh", "electricity_unit_price", room.DefaultElectricityUnitPrice|money_input, required=True) }}
+                        {{ money_field("Nước / m³", "water_unit_price", room.DefaultWaterUnitPrice|money_input, required=True) }}
+                    </div>
+                    <fieldset class="fieldset">
+                        <legend>Áp dụng từ tháng nào?</legend>
+                        <p class="muted small">Hóa đơn đã có trong khoảng này sẽ được tính lại theo giá mới. Để trống "Đến" nếu áp dụng lâu dài.</p>
+                        <div class="form-grid-4">
+                            <label class="field"><span class="field-label">Từ tháng</span>
+                                <input type="number" name="effective_from_month" min="1" max="12" value="{{ current_month }}" required></label>
+                            <label class="field"><span class="field-label">Từ năm</span>
+                                <input type="number" name="effective_from_year" min="2000" max="2100" value="{{ current_year }}" required></label>
+                            <label class="field"><span class="field-label">Đến tháng</span>
+                                <input type="number" name="effective_to_month" min="1" max="12" placeholder="—"></label>
+                            <label class="field"><span class="field-label">Đến năm</span>
+                                <input type="number" name="effective_to_year" min="2000" max="2100" placeholder="—"></label>
+                        </div>
+                    </fieldset>
+                    <button type="submit" class="btn btn-primary">{{ icon("check") }} Lưu giá {{ unit_name(room) }}</button>
+                </form>
+            </details>
+
+            <details class="disclosure">
+                <summary class="disclosure-link">Đổi tên / chuyển nhà / ngừng quản lý</summary>
+                <form method="post" action="{{ url_for('update_room_info', room_id=room.RoomId) }}" class="form-stack">
+                    <div class="form-grid-2">
+                        <label class="field"><span class="field-label">Mã phòng / căn</span>
+                            <input name="room_code" value="{{ room.RoomCode }}" maxlength="20" required></label>
+                        <label class="field"><span class="field-label">Tên hiển thị</span>
+                            <input name="room_name" value="{{ room.RoomName }}" maxlength="100"></label>
+                        <label class="field span-full"><span class="field-label">Thuộc nhà</span>
+                            <select name="property_id">
+                                {% for p in all_properties %}
+                                    <option value="{{ p.PropertyId }}" {{ "selected" if p.PropertyId == room.PropertyId else "" }}>{{ p.PropertyName }}</option>
+                                {% endfor %}
+                            </select></label>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">{{ icon("check") }} Lưu</button>
+                        <button type="submit" name="action" value="deactivate" class="btn btn-danger-ghost" formnovalidate
+                                onclick="return confirm('Ngừng quản lý {{ unit_name(room) }}? Phòng sẽ ẩn khỏi danh sách, hóa đơn cũ vẫn được giữ.')">Ngừng quản lý</button>
+                    </div>
+                </form>
+            </details>
+
+            {% if periods %}
+                <details class="disclosure">
+                    <summary class="disclosure-link">Lịch sử đơn giá ({{ periods|length }})</summary>
+                    <ul class="timeline">
+                        {% for period in periods %}
+                            <li>
+                                <strong>
+                                    {% if period.EffectiveFromYear == 2000 and period.EffectiveFromMonth == 1 %}Mặc định ban đầu{% else %}{{ "%02d"|format(period.EffectiveFromMonth) }}/{{ period.EffectiveFromYear }}{% endif %}
+                                    →
+                                    {% if period.EffectiveToMonth and period.EffectiveToYear %}{{ "%02d"|format(period.EffectiveToMonth) }}/{{ period.EffectiveToYear }}{% else %}nay{% endif %}
+                                </strong>
+                                <span>Thuê {{ period.RentAmount|money }} · DV {{ period.ServiceFee|money }} · Giặt {{ period.LaundryFee|money }} · Điện {{ period.ElectricityUnitPrice|money }} · Nước {{ period.WaterUnitPrice|money }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </details>
+            {% endif %}
+        </article>
+    {% endfor %}
+    </div>
+</section>
+{% endfor %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, money_field, unit_name, unit_sub with context %}
+
+{% block title %}Khách thuê{% endblock %}
+
+{% block content %}
+{% macro tenant_fields(tenant=None) -%}
+<div class="form-grid-3">
+    <label class="field">
+        <span class="field-label">Phòng / căn *</span>
+        <select name="room_id" required>
+            {% if not tenant %}<option value="">Chọn phòng</option>{% endif %}
+            {% for property_name, group in rooms|groupby("PropertyName") %}
+                <optgroup label="{{ property_name }}">
+                {% for room in group %}
+                    <option value="{{ room.RoomId }}" {{ "selected" if tenant and room.RoomId == tenant.RoomId else "" }}>
+                        {{ unit_name(room) }}{% if room.TenantNames %} — {{ room.TenantNames }}{% else %} — trống{% endif %}
+                    </option>
+                {% endfor %}
+                </optgroup>
+            {% endfor %}
+        </select>
+    </label>
+    <label class="field">
+        <span class="field-label">Họ tên *</span>
+        <input name="full_name" value="{{ tenant.FullName if tenant else '' }}" required>
+    </label>
+    <label class="field">
+        <span class="field-label">Số điện thoại</span>
+        <input name="phone" type="tel" value="{{ tenant.Phone or '' if tenant else '' }}">
+    </label>
+    <label class="field">
+        <span class="field-label">Email nhận hóa đơn</span>
+        <input type="email" name="email" value="{{ tenant.Email or '' if tenant else '' }}" placeholder="khach@example.com">
+    </label>
+    <label class="field">
+        <span class="field-label">CCCD/CMND</span>
+        <input name="citizen_id" value="{{ tenant.CitizenId or '' if tenant else '' }}">
+    </label>
+    <label class="field">
+        <span class="field-label">Bắt đầu thuê</span>
+        <input type="date" name="move_in_date" value="{{ tenant.MoveInDate or '' if tenant else '' }}">
+    </label>
+    {% if tenant %}
+        {{ money_field("Tiền thuê thỏa thuận *", "rent_amount", tenant.RentAmount|money_input, required=True) }}
+        {{ money_field("Phí dịch vụ thỏa thuận *", "service_fee", tenant.ServiceFee|money_input, required=True) }}
+        <label class="field">
+            <span class="field-label">Kết thúc thuê</span>
+            <input type="date" name="move_out_date" value="{{ tenant.MoveOutDate or '' }}">
+        </label>
+        <label class="field">
+            <span class="field-label">Trạng thái</span>
+            <select name="is_current">
+                <option value="1" {{ "selected" if tenant.IsCurrent else "" }}>Đang thuê</option>
+                <option value="0" {{ "selected" if not tenant.IsCurrent else "" }}>Đã ngưng</option>
+            </select>
+        </label>
+    {% else %}
+        {{ money_field("Tiền thuê thỏa thuận", "rent_amount", "", "Trống = giá mặc định của phòng") }}
+        {{ money_field("Phí dịch vụ thỏa thuận", "service_fee", "", "Trống = phí mặc định") }}
+    {% endif %}
+    <label class="field">
+        <span class="field-label">Số Zalo</span>
+        <input name="zalo_phone" value="{{ tenant.ZaloPhone or '' if tenant else '' }}" placeholder="Có thể dùng số điện thoại">
+    </label>
+    <label class="field">
+        <span class="field-label">Zalo UID</span>
+        <input name="zalo_user_id" value="{{ tenant.ZaloUserId or '' if tenant else '' }}" placeholder="Chỉ cần khi dùng Zalo OA">
+    </label>
+    <label class="field span-full">
+        <span class="field-label">Địa chỉ thường trú</span>
+        <input name="permanent_address" value="{{ tenant.PermanentAddress or '' if tenant else '' }}">
+    </label>
+    <label class="field span-full">
+        <span class="field-label">Ghi chú</span>
+        <input name="note" value="{{ tenant.Note or '' if tenant else '' }}" maxlength="500">
+    </label>
+</div>
+{%- endmacro %}
+
+{% macro tenant_card(tenant) -%}
+<article class="card tenant-card {{ 'is-past' if not tenant.IsCurrent else '' }}">
+    <div class="tenant-row">
+        <div class="avatar">{{ tenant.FullName[:1]|upper }}</div>
+        <div class="tenant-main">
+            <strong>{{ tenant.FullName }}</strong>
+            <span class="muted">
+                <b>{{ unit_name(tenant) }}</b>{% if unit_sub(tenant) %} · {{ unit_sub(tenant) }}{% endif %}
+                · {{ tenant.MoveInDate|vndate or "?" }} → {{ tenant.MoveOutDate|vndate or "nay" }}
+            </span>
+        </div>
+        <div class="tenant-contact">
+            {% if tenant.Phone %}<span>{{ icon("phone", 14) }} {{ tenant.Phone }}</span>{% endif %}
+            {% if tenant.Email %}<span>{{ icon("mail", 14) }} {{ tenant.Email }}</span>{% else %}<span class="warn-text">{{ icon("mail", 14) }} Chưa có email</span>{% endif %}
+        </div>
+        <div class="tenant-price">
+            <strong>{{ tenant.RentAmount|money }}</strong>
+            <small class="muted">DV {{ tenant.ServiceFee|money }}</small>
+        </div>
+    </div>
+    <details class="disclosure">
+        <summary class="disclosure-link">{{ icon("edit", 14) }} Sửa thông tin</summary>
+        <form method="post" action="{{ url_for('update_tenant', tenant_id=tenant.TenantId) }}" class="form-stack">
+            {{ tenant_fields(tenant) }}
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">{{ icon("check") }} Lưu</button>
+                {% if tenant.IsCurrent %}
+                    <button class="btn btn-danger-ghost" type="submit" formaction="{{ url_for('end_tenant', tenant_id=tenant.TenantId) }}"
+                            onclick="return confirm('Kết thúc thuê cho {{ tenant.FullName }} từ hôm nay?')">Kết thúc thuê hôm nay</button>
+                {% endif %}
+            </div>
+        </form>
+    </details>
+</article>
+{%- endmacro %}
+
+{% set current_tenants = tenants|selectattr("IsCurrent")|list %}
+{% set past_tenants = tenants|rejectattr("IsCurrent")|list %}
+
+<header class="page-header">
+    <div>
+        <p class="eyebrow">Quản lý</p>
+        <h1>Khách thuê</h1>
+    </div>
+</header>
+
+<details class="card add-card" {{ "open" if not tenants else "" }}>
+    <summary class="add-card-summary">{{ icon("plus") }} Thêm khách thuê mới</summary>
+    <form method="post" class="form-stack card-body">
+        {{ tenant_fields() }}
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ icon("plus") }} Thêm lượt thuê</button>
+        </div>
+    </form>
+</details>
+
+<section class="section">
+    <div class="section-head"><h2>Đang thuê <span class="count">{{ current_tenants|length }}</span></h2></div>
+    {% if current_tenants %}
+        <div class="stack">{% for tenant in current_tenants %}{{ tenant_card(tenant) }}{% endfor %}</div>
+    {% else %}
+        <div class="empty-card flat">{{ icon("users", 28) }}<strong>Chưa có khách đang thuê</strong></div>
+    {% endif %}
+</section>
+
+{% if past_tenants %}
+    <details class="section past-section">
+        <summary class="section-head"><h2>Đã ngưng thuê <span class="count">{{ past_tenants|length }}</span></h2><span class="disclosure-link">Hiện / ẩn</span></summary>
+        <div class="stack">{% for tenant in past_tenants %}{{ tenant_card(tenant) }}{% endfor %}</div>
+    </details>
+{% endif %}
+{% endblock %}

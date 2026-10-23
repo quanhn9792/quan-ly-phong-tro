@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, month_nav, money_field with context %}
+
+{% block title %}Đơn giá dự phòng{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">Cài đặt</p>
+        <h1>Đơn giá dự phòng tháng {{ "%02d"|format(month) }}/{{ year }}</h1>
+    </div>
+    {{ month_nav("months_page", year, month) }}
+</header>
+
+<div class="callout callout-info">
+    {{ icon("alert") }}
+    <div>
+        <strong>Chỉ dùng khi phòng chưa có đơn giá riêng</strong>
+        <span>Hóa đơn ưu tiên đơn giá điện/nước của từng phòng (trang Phòng & giá). Giá ở đây là mức dự phòng cho cả tháng.</span>
+    </div>
+</div>
+
+<section class="card narrow">
+    <div class="card-head">
+        <h2>{{ "Đã cấu hình" if month_data else "Chưa cấu hình — đang hiện giá mặc định" }}</h2>
+    </div>
+    <form method="post" class="form-stack card-body">
+        <input type="hidden" name="month" value="{{ month }}">
+        <input type="hidden" name="year" value="{{ year }}">
+        <div class="form-grid-3">
+            {{ money_field("Điện / kWh", "electricity_price", (month_data.ElectricityUnitPrice if month_data else default_electricity)|money_input, required=True) }}
+            {{ money_field("Nước / m³", "water_price", (month_data.WaterUnitPrice if month_data else default_water)|money_input, required=True) }}
+            {{ money_field("Phí dịch vụ mặc định", "service_fee", (month_data.DefaultServiceFee if month_data else default_service)|money_input, required=True) }}
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ icon("check") }} Lưu đơn giá</button>
+            <a class="btn btn-ghost" href="{{ url_for('bill_form', year=year, month=month) }}">{{ icon("bolt") }} Nhập điện nước</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

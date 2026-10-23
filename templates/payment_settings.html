@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon with context %}
+
+{% block title %}QR & email{% endblock %}
+
+{% block content %}
+{% set s = payment_settings %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">Cài đặt</p>
+        <h1>QR thanh toán & email gửi khách</h1>
+    </div>
+</header>
+
+<section class="settings-grid">
+    <div class="card">
+        <div class="card-head"><h2>{{ icon("wallet") }} QR ngân hàng</h2></div>
+        <div class="card-body qr-settings">
+            <div class="qr-preview">
+                {% if has_payment_qr %}
+                    <img src="{{ url_for('payment_settings_qr') }}" alt="QR thanh toán cố định">
+                    <small class="muted">{{ s.QrFileName or "Ảnh QR đã upload" }}</small>
+                {% else %}
+                    <div class="qr-placeholder">{{ icon("image", 32) }}<span>Chưa upload QR</span></div>
+                {% endif %}
+            </div>
+            <form method="post" class="form-stack" enctype="multipart/form-data">
+                <input type="hidden" name="settings_type" value="qr">
+                <label class="field">
+                    <span class="field-label">Ảnh QR từ app ngân hàng (PNG/JPG/WEBP, tối đa 5 MB)</span>
+                    <input type="file" name="payment_qr_image" accept="image/png,image/jpeg,image/webp">
+                </label>
+                <label class="field">
+                    <span class="field-label">Thông tin tài khoản (in dưới QR)</span>
+                    <textarea name="account_info" rows="3" maxlength="500" placeholder="VD: Vietcombank - 123456789 - NGUYEN VAN A">{{ s.AccountInfo if s and s.AccountInfo else "" }}</textarea>
+                </label>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">{{ icon("check") }} Lưu QR</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <div>
+                <h2>{{ icon("mail") }} Email gửi khách (SMTP)</h2>
+                <span class="muted">Dùng cho nút "Gửi email" ở trang Báo cáo.</span>
+            </div>
+        </div>
+        <form method="post" class="form-stack card-body">
+            <input type="hidden" name="settings_type" value="email">
+            <div class="form-grid-2">
+                <label class="field">
+                    <span class="field-label">Tên người gửi</span>
+                    <input name="sender_name" value="{{ s.SenderName if s and s.SenderName else 'Quan ly phong tro' }}">
+                </label>
+                <label class="field">
+                    <span class="field-label">Email gửi đi</span>
+                    <input type="email" name="from_email" value="{{ s.FromEmail if s and s.FromEmail else '' }}" placeholder="email@gmail.com">
+                </label>
+                <label class="field">
+                    <span class="field-label">SMTP host</span>
+                    <input name="smtp_host" value="{{ s.SmtpHost if s and s.SmtpHost else '' }}" placeholder="smtp.gmail.com">
+                </label>
+                <label class="field">
+                    <span class="field-label">SMTP port</span>
+                    <input type="number" name="smtp_port" min="1" max="65535" value="{{ s.SmtpPort if s and s.SmtpPort else 587 }}">
+                </label>
+                <label class="field">
+                    <span class="field-label">SMTP username</span>
+                    <input name="smtp_username" value="{{ s.SmtpUsername if s and s.SmtpUsername else '' }}" placeholder="Thường là email gửi đi" autocomplete="off">
+                </label>
+                <label class="field">
+                    <span class="field-label">App password</span>
+                    <input type="password" name="smtp_password" placeholder="{{ 'Đã lưu — để trống nếu không đổi' if s and s.SmtpPassword else 'Mật khẩu ứng dụng' }}" autocomplete="new-password">
+                </label>
+            </div>
+            <label class="check">
+                <input type="checkbox" name="smtp_use_tls" value="1" {{ "checked" if not s or s.SmtpUseTls else "" }}>
+                <span>Dùng STARTTLS (Gmail: bật, port 587)</span>
+            </label>
+            <p class="muted small">Gmail cần tạo <b>App Password</b> trong tài khoản Google, không dùng mật khẩu đăng nhập thường.</p>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">{{ icon("check") }} Lưu cấu hình email</button>
+            </div>
+        </form>
+        <form method="post" class="card-body inline-test">
+            <input type="hidden" name="settings_type" value="test_email">
+            <label class="field grow">
+                <span class="field-label">Gửi thử tới</span>
+                <input type="email" name="test_email" value="{{ s.FromEmail if s and s.FromEmail else '' }}" placeholder="email nhận test">
+            </label>
+            <button type="submit" class="btn btn-ghost">{{ icon("send") }} Gửi email test</button>
+        </form>
+    </div>
+</section>
+
+<details class="card danger-zone">
+    <summary class="add-card-summary">{{ icon("database") }} Nâng cao: kiểm tra / cập nhật cấu trúc database</summary>
+    <div class="card-body">
+        <p class="muted small">Chạy lại script <code>database/schema.sql</code> (tự chạy mỗi lần khởi động). Chỉ tạo bảng/cột còn thiếu và cập nhật view, không xóa hay sửa dữ liệu đang có.</p>
+        <form method="post" action="{{ url_for('init_db') }}" data-confirm="Chạy lại script khởi tạo database?">
+            <button type="submit" class="btn btn-ghost">{{ icon("database") }} Chạy kiểm tra database</button>
+        </form>
+    </div>
+</details>
+{% endblock %}

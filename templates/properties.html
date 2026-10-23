@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, money_field with context %}
+
+{% block title %}Nhà & căn hộ{% endblock %}
+
+{% block content %}
+{% macro type_select(selected="ROOMING_HOUSE") -%}
+<select name="property_type" required data-property-type>
+    {% for value, label in property_types %}
+        <option value="{{ value }}" {{ "selected" if value == selected else "" }}>{{ label }}</option>
+    {% endfor %}
+</select>
+{%- endmacro %}
+
+<header class="page-header">
+    <div>
+        <p class="eyebrow">Quản lý</p>
+        <h1>Nhà & căn hộ</h1>
+    </div>
+</header>
+
+<details class="card add-card" {{ "open" if not properties else "" }}>
+    <summary class="add-card-summary">{{ icon("plus") }} Thêm nhà / căn hộ mới</summary>
+    <form method="post" class="form-stack card-body">
+        <div class="form-grid-2">
+            <label class="field">
+                <span class="field-label">Tên gọi *</span>
+                <input name="property_name" maxlength="150" required placeholder="VD: Nhà trọ Cầu Giấy, Căn hộ Times City T5-1203">
+            </label>
+            <label class="field">
+                <span class="field-label">Loại hình *</span>
+                {{ type_select() }}
+            </label>
+            <label class="field span-full">
+                <span class="field-label">Địa chỉ</span>
+                <input name="address" maxlength="255">
+            </label>
+            <div class="span-full" data-single-unit hidden>
+                {{ money_field("Giá thuê nguyên căn / tháng", "rent_amount", "", "Có thể nhập sau") }}
+                <p class="muted small">Cho thuê nguyên căn: hệ thống tự tạo 1 căn để nhập hóa đơn hằng tháng.</p>
+            </div>
+            <label class="field span-full">
+                <span class="field-label">Ghi chú</span>
+                <input name="note" maxlength="500">
+            </label>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ icon("plus") }} Thêm</button>
+        </div>
+    </form>
+</details>
+
+<section class="property-grid">
+    {% for p in properties %}
+        <article class="card property-card {{ 'is-past' if not p.IsActive else '' }}">
+            <div class="property-top">
+                <span class="property-icon">{{ icon("home" if p.PropertyType in ("WHOLE_HOUSE",) else "building", 22) }}</span>
+                <div class="property-main">
+                    <strong>{{ p.PropertyName }}</strong>
+                    <span class="muted">{{ p.PropertyType|property_type }}</span>
+                    {% if p.Address %}<span class="muted small-line">{{ icon("map", 13) }} {{ p.Address }}</span>{% endif %}
+                </div>
+                {% if not p.IsActive %}<span class="pill pill-inactive">Ngừng quản lý</span>{% endif %}
+            </div>
+            <dl class="price-list">
+                <div><dt>Phòng / căn</dt><dd>{{ p.UnitCount }}</dd></div>
+                <div><dt>Đang cho thuê</dt><dd>{{ p.OccupiedCount or 0 }}<small>/{{ p.UnitCount }}</small></dd></div>
+            </dl>
+            <div class="toolbar">
+                {% if p.IsActive %}
+                    <form method="post" action="{{ url_for('select_property') }}">
+                        <input type="hidden" name="property_id" value="{{ p.PropertyId }}">
+                        <input type="hidden" name="next" value="{{ url_for('rooms_page') }}">
+                        <button type="submit" class="btn btn-ghost btn-sm">{{ icon("door", 14) }} Xem phòng của nhà này</button>
+                    </form>
+                {% endif %}
+            </div>
+            <details class="disclosure">
+                <summary class="disclosure-link">{{ icon("edit", 14) }} Sửa thông tin</summary>
+                <form method="post" action="{{ url_for('update_property', property_id=p.PropertyId) }}" class="form-stack">
+                    <label class="field"><span class="field-label">Tên gọi *</span>
+                        <input name="property_name" value="{{ p.PropertyName }}" maxlength="150" required></label>
+                    <label class="field"><span class="field-label">Loại hình</span>{{ type_select(p.PropertyType) }}</label>
+                    <label class="field"><span class="field-label">Địa chỉ</span>
+                        <input name="address" value="{{ p.Address or '' }}" maxlength="255"></label>
+                    <label class="field"><span class="field-label">Ghi chú</span>
+                        <input name="note" value="{{ p.Note or '' }}" maxlength="500"></label>
+                    <label class="field"><span class="field-label">Trạng thái</span>
+                        <select name="is_active">
+                            <option value="1" {{ "selected" if p.IsActive else "" }}>Đang quản lý</option>
+                            <option value="0" {{ "selected" if not p.IsActive else "" }}>Ngừng quản lý (ẩn khỏi các trang)</option>
+                        </select></label>
+                    <div class="form-actions"><button type="submit" class="btn btn-primary">{{ icon("check") }} Lưu</button></div>
+                </form>
+            </details>
+        </article>
+    {% endfor %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Hiện ô "Giá thuê nguyên căn" khi chọn loại cho thuê nguyên căn
+    document.querySelectorAll(".add-card [data-property-type]").forEach((select) => {
+        const box = select.form.querySelector("[data-single-unit]");
+        const update = () => { box.hidden = !["WHOLE_HOUSE", "APARTMENT"].includes(select.value); };
+        select.addEventListener("change", update);
+        update();
+    });
+</script>
+{% endblock %}

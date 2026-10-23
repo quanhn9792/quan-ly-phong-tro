@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Dữ liệu cục bộ - KHÔNG đưa lên git (chứa thông tin khách thuê / bí mật)
+backups/
+*.bak
+*.mdf
+*.ldf
+logs/
+*.log
+instance/
+.env
+
+# Editor / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
