@@ -22,6 +22,7 @@ Mỗi tháng nhập chỉ số điện/nước, hệ thống tự tính tiền t
 | Cài đặt | Đơn giá dự phòng theo tháng, QR ngân hàng, SMTP gửi email |
 | Thu tiền | Đánh dấu Đã thu / Chưa thu ngay trên Tổng quan, Báo cáo, Gửi Zalo, chi tiết hóa đơn; tổng đã thu / còn phải thu; danh sách **còn nợ các tháng trước** |
 | Tài khoản | Đổi mật khẩu ngay trên app (đăng xuất các thiết bị khác) |
+| Cài lên điện thoại | Mã QR mở app, hướng dẫn cài iPhone / Android, tự kiểm tra cấu hình tunnel |
 | App của khách | Mỗi khách 1 link riêng (không cần mật khẩu): xem hóa đơn các tháng, QR thanh toán, lưu ảnh; cài lên màn hình chính như app |
 
 Khi có từ 2 nhà trở lên, ô **"Đang xem"** ở thanh bên cho phép lọc mọi màn hình theo một nhà.
@@ -78,7 +79,7 @@ Có thể đặt các biến dưới đây trong file `instance\web.env` (xem m�
    - Hoặc **Cloudflare Tunnel** nếu đã có tên miền trên Cloudflare: `cloudflared tunnel` trỏ về `http://127.0.0.1:5000`.
 3. Copy `web.env.example` thành `instance\web.env`, bỏ dấu `#` ở 2 dòng `TRUST_PROXY=1` và `PUBLIC_URL=<địa chỉ tunnel>` rồi khởi động lại web.
    Trong Windows: *Settings › System › Power* đặt **Sleep = Never** khi cắm điện, nếu không máy ngủ là điện thoại mất kết nối.
-4. Trên điện thoại mở địa chỉ tunnel, đăng nhập:
+4. Trên điện thoại mở địa chỉ tunnel (hoặc vào **Cài đặt › Cài lên điện thoại** trên máy tính rồi quét mã QR), đăng nhập:
    - **iPhone (Safari)**: nút Chia sẻ → *Thêm vào MH chính*.
    - **Android (Chrome)**: menu ⋮ → *Cài đặt ứng dụng* / *Thêm vào màn hình chính*.
 

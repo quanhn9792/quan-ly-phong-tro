@@ -205,3 +205,12 @@ def test_session_cookie_secure_only_over_https(app):
         response = client.post(base + "/login", data={"username": "admin", "password": PASSWORD, "csrf_token": token})
         cookie = response.headers.get("Set-Cookie", "")
         assert ("Secure" in cookie) is secure, cookie
+
+
+def test_install_page(owner, monkeypatch):
+    html = owner.get("/install").get_data(as_text=True)
+    assert "Chưa có địa chỉ" in html  # mở bằng localhost, chưa có PUBLIC_URL
+    assert owner.get("/install/qr.png").status_code == 404
+    monkeypatch.setenv("PUBLIC_URL", "https://nha.example.ts.net")
+    assert "https://nha.example.ts.net" in owner.get("/install").get_data(as_text=True)
+    assert owner.get("/install/qr.png").mimetype == "image/png"

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon with context %}
+
+{% block title %}Cài lên điện thoại{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">Cài đặt</p>
+        <h1>Cài app lên điện thoại</h1>
+    </div>
+</header>
+
+<div class="install-grid">
+    <section class="card">
+        <div class="card-body form-stack install-qr">
+            {% if url %}
+                <img src="{{ url_for('install_qr') }}" alt="Mã QR mở app" width="232" height="232">
+                <strong>Quét bằng camera điện thoại</strong>
+                <code class="install-url">{{ url }}</code>
+                <button type="button" class="btn btn-ghost btn-sm" data-copy="{{ url }}">{{ icon("check", 14) }} Copy địa chỉ</button>
+            {% else %}
+                <div class="callout callout-warn">{{ icon("alert") }}<div>
+                    <strong>Chưa có địa chỉ để mở từ điện thoại</strong>
+                    <span>Đang mở bằng địa chỉ của máy này. Hãy bật tunnel (Tailscale Funnel / Cloudflare Tunnel) và đặt PUBLIC_URL — cách nhanh nhất: chạy <code>scripts\setup_mobile.ps1</code>.</span>
+                </div></div>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-body form-stack">
+            <h2>{{ icon("phone") }} Các bước cài</h2>
+            <ol class="install-steps">
+                <li><strong>iPhone:</strong> mở địa chỉ bằng <b>Safari</b> → đăng nhập → nút Chia sẻ <span aria-hidden="true">⬆︎</span> → <b>Thêm vào MH chính</b>.</li>
+                <li><strong>Android:</strong> mở bằng <b>Chrome</b> → đăng nhập → menu ⋮ → <b>Cài đặt ứng dụng</b> (hoặc <i>Thêm vào màn hình chính</i>).</li>
+                <li>Mở app từ biểu tượng <b>Cho thuê</b> trên màn hình chính — chạy toàn màn hình như app thật.</li>
+                <li>Gửi app cho khách: trang <a class="link" href="{{ url_for('tenants_page') }}">Khách thuê</a> → <b>Tạo link app</b> → gửi qua Zalo.</li>
+            </ol>
+
+            <h2>{{ icon("settings") }} Kiểm tra cấu hình</h2>
+            <ul class="install-checks">
+                {% for label, ok, hint in checks %}
+                    <li class="{{ 'ok' if ok else 'todo' }}">
+                        {{ icon("check" if ok else "alert", 16) }}
+                        <span><b>{{ label }}</b>{% if not ok %}<small>{{ hint }}</small>{% endif %}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+            <p class="muted small">Máy tính này là máy chủ: cần bật và <b>không ở chế độ ngủ</b> thì điện thoại mới dùng được (khi mất kết nối, app vẫn xem được các trang đã mở trước đó).</p>
+        </div>
+    </section>
+</div>
+{% endblock %}

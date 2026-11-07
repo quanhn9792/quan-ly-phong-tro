@@ -13,6 +13,7 @@ from typing import Any
 from zipfile import ZIP_DEFLATED, ZipFile
 
 import pyodbc
+import qrcode
 from flask import Flask, abort, flash, g, redirect, render_template, request, send_file, send_from_directory, session, url_for
 from flask.sessions import SecureCookieSessionInterface
 from werkzeug.exceptions import HTTPException
@@ -873,6 +874,35 @@ def create_app() -> Flask:
                 q.log_bill_delivery(int(bill.RoomMonthlyBillId), "EXPORT", None, "EXPORTED")
         buffer.seek(0)
         return send_file(buffer, mimetype="application/zip", as_attachment=True, download_name=f"anh-gui-khach-{year}-{month:02d}.zip", max_age=0)
+
+    # ----- Cài lên điện thoại -----
+
+    def app_public_url() -> str | None:
+        public = os.getenv("PUBLIC_URL", "").strip().rstrip("/")
+        if public:
+            return public
+        return None if is_local_host() else request.host_url.rstrip("/")
+
+    @app.get("/install")
+    def install_page():
+        url = app_public_url()
+        checks = [
+            ("Đã đặt địa chỉ công khai (PUBLIC_URL)", bool(os.getenv("PUBLIC_URL")),
+             r"Chạy scripts\setup_mobile.ps1 hoặc thêm PUBLIC_URL vào instance\web.env"),
+            ("Chạy sau tunnel (TRUST_PROXY=1)", os.getenv("TRUST_PROXY") == "1", r"Thêm TRUST_PROXY=1 vào instance\web.env"),
+            ("Địa chỉ dùng HTTPS", bool(url and url.startswith("https://")), "PWA và nút Chia sẻ chỉ chạy trên HTTPS"),
+        ]
+        return render_template("install.html", url=url, checks=checks)
+
+    @app.get("/install/qr.png")
+    def install_qr():
+        url = app_public_url()
+        if not url:
+            abort(404)
+        image = qrcode.make(url, box_size=8, border=2)
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+        return send_file(BytesIO(buffer.getvalue()), mimetype="image/png", max_age=0)
 
     # ----- Cài đặt QR & email -----
 
