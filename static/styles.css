@@ -738,7 +738,13 @@ input::placeholder, textarea::placeholder { color: #a3aeaa; }
 
 @media (max-width: 560px) {
     .form-grid-2, .form-grid-3, .form-grid-4, .meter { grid-template-columns: 1fr; }
-    .month-bars { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    /* Biểu đồ 12 tháng: 2 hàng x 6 cột, cột thấp hơn để đỡ chiếm màn hình */
+    .month-bars { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; padding: 10px 8px; }
+    .month-bar { padding: 6px 0; gap: 3px; }
+    .month-bar-track { height: 52px; max-width: 26px; }
+    .month-bar strong { font-size: 11.5px; }
+    .month-bar strong small { font-size: 9.5px; }
+    .month-bar em { display: none; }
     .room-cards { grid-template-columns: 1fr; }
     .tenant-row { grid-template-columns: 40px minmax(0, 1fr); }
     .tenant-price { grid-column: 2; text-align: left; }
