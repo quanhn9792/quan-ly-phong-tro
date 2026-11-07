@@ -140,6 +140,8 @@ body.standalone { display: block; }
 .install-tip > summary::-webkit-details-marker { display: none; }
 .install-tip p { margin: 0 0 8px; }
 
+.mobile-total { display: none; }
+
 /* Chỉ hiện trên điện thoại */
 .appbar, .tabbar, .menu-backdrop { display: none; }
 
@@ -673,6 +675,14 @@ input::placeholder, textarea::placeholder { color: #a3aeaa; }
     .tab.active { color: var(--primary); }
     .tab.active .icon { stroke-width: 2.4; }
     .toast { bottom: calc(76px + env(safe-area-inset-bottom)); }
+
+    /* Form nhập điện nước: tổng tạm tính ngay trên nút Lưu */
+    .mobile-total {
+        display: flex; justify-content: space-between; align-items: baseline;
+        padding: 12px 14px; border-radius: var(--radius-sm); background: var(--primary-soft); color: var(--primary-ink);
+    }
+    .mobile-total strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+    .form-actions .btn-lg { flex: 1; }
 
     .page { padding: 18px 16px calc(96px + env(safe-area-inset-bottom)); }
     h1 { font-size: 23px; }

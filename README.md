@@ -45,7 +45,9 @@ python main.py create-owner
 python web.py          # mở http://127.0.0.1:5000
 ```
 
-### Cấu hình kết nối (biến môi trường)
+### Cấu hình (biến môi trường hoặc file `instance\web.env`)
+
+Có thể đặt các biến dưới đây trong file `instance\web.env` (xem mẫu `web.env.example`) thay vì biến môi trường Windows.
 
 | Biến | Mặc định | Ghi chú |
 | --- | --- | --- |
@@ -71,7 +73,8 @@ python web.py          # mở http://127.0.0.1:5000
 2. Mở web ra ngoài bằng một tunnel có HTTPS (PWA và nút Chia sẻ đều cần HTTPS):
    - **Tailscale Funnel** (miễn phí, địa chỉ cố định dạng `https://<tên-máy>.<tailnet>.ts.net`): cài Tailscale, đăng nhập, rồi chạy `tailscale funnel --bg 5000`.
    - Hoặc **Cloudflare Tunnel** nếu đã có tên miền trên Cloudflare: `cloudflared tunnel` trỏ về `http://127.0.0.1:5000`.
-3. Đặt biến môi trường `TRUST_PROXY=1` cho web (vd. thêm `$env:TRUST_PROXY = "1"` vào đầu `scripts/start_web.ps1`) rồi khởi động lại.
+3. Copy `web.env.example` thành `instance\web.env`, bỏ dấu `#` ở 2 dòng `TRUST_PROXY=1` và `PUBLIC_URL=<địa chỉ tunnel>` rồi khởi động lại web.
+   Trong Windows: *Settings › System › Power* đặt **Sleep = Never** khi cắm điện, nếu không máy ngủ là điện thoại mất kết nối.
 4. Trên điện thoại mở địa chỉ tunnel, đăng nhập:
    - **iPhone (Safari)**: nút Chia sẻ → *Thêm vào MH chính*.
    - **Android (Chrome)**: menu ⋮ → *Cài đặt ứng dụng* / *Thêm vào màn hình chính*.

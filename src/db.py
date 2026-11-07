@@ -10,6 +10,22 @@ import pyodbc
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ENV_FILE = PROJECT_ROOT / "instance" / "web.env"
+
+
+def load_env_file(path: Path = ENV_FILE) -> None:
+    """Đọc cấu hình KEY=VALUE từ instance/web.env (không ghi đè biến môi trường đã đặt sẵn)."""
+    if not path.exists():
+        return
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+load_env_file()
 SCHEMA_FILE = PROJECT_ROOT / "database" / "schema.sql"
 PREFERRED_DRIVERS = [
     "ODBC Driver 18 for SQL Server",
