@@ -49,7 +49,7 @@
         <button type="button" class="icon-btn appbar-refresh" onclick="location.reload()" aria-label="Tải lại">{{ icon("refresh", 18) }}</button>
     </header>
 
-    <div class="menu-backdrop" data-menu-close></div>
+    <button type="button" class="menu-backdrop" data-menu-close tabindex="-1" aria-label="Đóng menu"></button>
     <aside class="sidebar" id="app-menu">
         <a class="brand" href="{{ url_for('dashboard') }}">
             <span class="brand-mark">{{ icon("home", 20) }}</span>
