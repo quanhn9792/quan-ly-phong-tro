@@ -474,6 +474,9 @@ input::placeholder, textarea::placeholder { color: #a3aeaa; }
 .overdue-info span { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .overdue-amount { font-variant-numeric: tabular-nums; }
 .overdue-row .paid-toggle.is-paid { opacity: 0.6; }
+.overdue.reported { border-color: #cbd9f7; }
+.overdue.reported .overdue-head { background: var(--blue-soft); }
+.overdue.reported .overdue-head h2, .overdue.reported .overdue-head strong { color: var(--blue); }
 @media (max-width: 560px) {
     .overdue-row { grid-template-columns: minmax(0, 1fr) auto; }
     .overdue-row .paid-toggle { grid-column: 1 / -1; }
@@ -490,6 +493,8 @@ input::placeholder, textarea::placeholder { color: #a3aeaa; }
 .pay-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 99px; font-size: 12px; font-weight: 650; white-space: nowrap; }
 .pay-pill.is-paid { background: var(--primary-soft); color: var(--primary-ink); }
 .pay-pill.is-unpaid { background: var(--amber-soft); color: var(--amber); }
+.pay-pill.is-reported { background: var(--blue-soft); color: var(--blue); }
+.paid-toggle.is-reported:not(.is-paid) .paid-btn { background: var(--blue-soft); color: var(--blue); border-color: #cbd9f7; }
 .invoice-tenant { display: grid; gap: 2px; padding: 12px 0; border-bottom: 1px solid var(--line); }
 .invoice-tenant span { font-size: 12.5px; color: var(--muted); }
 .invoice-tenant strong { font-size: 17px; }

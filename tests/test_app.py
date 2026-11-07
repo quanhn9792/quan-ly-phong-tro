@@ -105,3 +105,24 @@ def test_notice_image_and_thumbnail(owner):
     assert owner.get(f"/reports/bills/{bill.RoomMonthlyBillId}/notice.png").mimetype == "image/png"
     thumb = owner.get(f"/reports/bills/{bill.RoomMonthlyBillId}/thumb.jpg")
     assert thumb.mimetype == "image/jpeg" and len(thumb.data) < 40_000
+
+
+def test_tenant_reports_paid_then_owner_confirms(owner, app):
+    tenant = q.tenant_list()[1]
+    owner.post(f"/tenants/{tenant.TenantId}/portal-link", data={"action": "create", "csrf_token": owner.csrf})
+    token = q.tenant_portal_token(tenant.TenantId)
+    bill = q.tenant_bills(q.tenant_by_portal_token(token))[0]
+    guest = app.test_client()
+    page = guest.get(f"/k/{token}/hoa-don/{bill.RoomMonthlyBillId}").get_data(as_text=True)
+    assert "Tôi đã chuyển khoản" in page
+    # Không cần phiên/CSRF: mã bí mật trong link là khóa
+    response = guest.post(f"/k/{token}/hoa-don/{bill.RoomMonthlyBillId}/da-chuyen")
+    assert response.status_code == 302
+    assert q.get_bill(bill.RoomMonthlyBillId).TenantReportedPaidAt is not None
+    assert "Khách báo đã chuyển khoản" in owner.get("/").get_data(as_text=True)
+    # Mã sai / hóa đơn phòng khác: không ghi được
+    other = next(b for b in q.month_bills(2026, 11) if b.RoomId != tenant.RoomId)
+    assert guest.post(f"/k/{token}/hoa-don/{other.RoomMonthlyBillId}/da-chuyen").status_code == 404
+    assert q.get_bill(other.RoomMonthlyBillId).TenantReportedPaidAt is None
+    owner.post(f"/reports/bills/{bill.RoomMonthlyBillId}/paid", data={"paid": "1", "csrf_token": owner.csrf})
+    assert "Khách báo đã chuyển khoản" not in owner.get("/").get_data(as_text=True)

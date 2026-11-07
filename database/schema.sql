@@ -329,6 +329,13 @@ BEGIN
 END;
 GO
 
+/* Khách bấm "Tôi đã chuyển khoản" trong app của khách */
+IF COL_LENGTH(N'dbo.RoomMonthlyBills', N'TenantReportedPaidAt') IS NULL
+BEGIN
+    ALTER TABLE dbo.RoomMonthlyBills ADD TenantReportedPaidAt DATETIME2(0) NULL;
+END;
+GO
+
 /* ===== Tài khoản đăng nhập (chủ nhà) ===== */
 IF OBJECT_ID(N'dbo.AppUsers', N'U') IS NULL
 BEGIN
@@ -408,6 +415,7 @@ SELECT
     b.Note,
     b.PaymentQrContent,
     b.PaidAt,
+    b.TenantReportedPaidAt,
     b.CreatedAt,
     b.UpdatedAt
 FROM dbo.RoomMonthlyBills AS b

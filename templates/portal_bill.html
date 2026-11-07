@@ -7,6 +7,16 @@
 <a class="back-link" href="{{ url_for('portal_home', token=token) }}">{{ icon("back", 16) }} Tất cả hóa đơn</a>
 {{ invoice(bill, url_for('portal_qr', token=token, bill_id=bill.RoomMonthlyBillId), payment_settings) }}
 {% if not bill.PaidAt %}
+    {% if bill.TenantReportedPaidAt %}
+        <div class="callout callout-info">{{ icon("check") }}<div>
+            <strong>{{ "Cảm ơn bạn! " if request.args.get("reported") }}Đã báo chủ nhà là bạn đã chuyển khoản</strong>
+            <span>Lúc {{ bill.TenantReportedPaidAt.strftime("%H:%M %d/%m/%Y") }} · đang chờ chủ nhà xác nhận.</span>
+        </div></div>
+    {% else %}
+        <form method="post" action="{{ url_for('portal_report_paid', token=token, bill_id=bill.RoomMonthlyBillId) }}">
+            <button type="submit" class="btn btn-primary btn-block btn-lg">{{ icon("check") }} Tôi đã chuyển khoản</button>
+        </form>
+    {% endif %}
     <p class="muted small portal-hint">Mở app ngân hàng → Quét QR ở trên, hoặc chuyển khoản với đúng nội dung <strong>{{ bill|payment_memo }}</strong>. Chủ nhà sẽ xác nhận khi nhận được tiền.</p>
 {% endif %}
 <div class="portal-actions">

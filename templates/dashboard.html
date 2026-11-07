@@ -58,6 +58,27 @@
     </div>
 {% endif %}
 
+{% if reported %}
+    <section class="card overdue reported">
+        <div class="overdue-head">
+            <h2 title="Kiểm tra tài khoản ngân hàng rồi bấm xác nhận">{{ icon("wallet") }} Khách báo đã chuyển khoản</h2>
+            <strong>{{ reported|sum(attribute="TotalAmount")|money }}</strong>
+        </div>
+        <div class="overdue-list">
+            {% for bill in reported %}
+                <div class="overdue-row">
+                    <a href="{{ url_for('bill_detail_page', bill_id=bill.RoomMonthlyBillId) }}" class="overdue-info">
+                        <strong>{{ unit_name(bill) }} <small class="muted">· T{{ "%02d"|format(bill.MonthNumber) }}/{{ bill.YearNumber }}</small></strong>
+                        <span class="muted">{{ bill.TenantNames or "" }} · báo lúc {{ bill.TenantReportedPaidAt.strftime("%H:%M %d/%m") }}</span>
+                    </a>
+                    <strong class="overdue-amount">{{ bill.TotalAmount|money }}</strong>
+                    {{ paid_toggle(bill, "btn-sm") }}
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+{% endif %}
+
 {% if overdue %}
     {% set overdue_total = overdue|sum(attribute="TotalAmount") %}
     <section class="card overdue">

@@ -35,7 +35,7 @@ BILL_COLUMNS = """
     RentAmount, ServiceFee, LaundryFee,
     ElectricOld, ElectricNew, ElectricUsage, ElectricityUnitPrice, ElectricityAmount,
     WaterOld, WaterNew, WaterUsage, WaterUnitPrice, WaterAmount,
-    TotalAmount, Note, PaymentQrContent, PaidAt, CreatedAt, UpdatedAt
+    TotalAmount, Note, PaymentQrContent, PaidAt, TenantReportedPaidAt, CreatedAt, UpdatedAt
 """
 
 PERIOD_COLUMNS = """
@@ -733,4 +733,24 @@ def unpaid_bills_before(year: int, month: int, property_id: int | None = None, l
         ORDER BY YearNumber DESC, MonthNumber DESC, PropertyName, RoomCode;
         """,
         (year * 12 + month, *params),
+    )
+
+
+def report_tenant_paid(bill_id: int) -> None:
+    execute(
+        "UPDATE dbo.RoomMonthlyBills SET TenantReportedPaidAt = COALESCE(TenantReportedPaidAt, SYSDATETIME()) WHERE RoomMonthlyBillId = ?;",
+        (bill_id,),
+    )
+
+
+def tenant_reported_unpaid(property_id: int | None = None) -> list[Any]:
+    """Hóa đơn khách đã báo chuyển khoản nhưng chủ nhà chưa xác nhận."""
+    clause, params = property_filter("PropertyId", property_id)
+    return rows(
+        f"""
+        SELECT {BILL_COLUMNS} FROM dbo.v_MonthlyRoomBills
+        WHERE PaidAt IS NULL AND TenantReportedPaidAt IS NOT NULL {clause}
+        ORDER BY TenantReportedPaidAt DESC;
+        """,
+        params,
     )

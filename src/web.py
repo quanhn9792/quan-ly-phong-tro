@@ -293,6 +293,7 @@ def create_app() -> Flask:
             paid_total=sum((Decimal(bill.TotalAmount) for bill in bills if bill.PaidAt), Decimal("0")),
             paid_count=sum(1 for bill in bills if bill.PaidAt),
             overdue=q.unpaid_bills_before(year, month, property_id),
+            reported=q.tenant_reported_unpaid(property_id),
             configured_month=q.get_month(year, month),
         )
 

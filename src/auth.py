@@ -23,6 +23,7 @@ SESSION_DAYS = 30
 CSRF_FIELD = "csrf_token"
 CSRF_HEADER = "X-CSRF-Token"
 UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+CSRF_EXEMPT_ENDPOINTS: set[str] = set()  # module khác (portal) tự đăng ký
 # Các trang mở được khi chưa đăng nhập
 PUBLIC_ENDPOINTS = {"login", "static", "service_worker", "manifest", "offline_page", "assetlinks"}
 
@@ -150,7 +151,7 @@ def register_auth(app: Flask) -> None:
             else:
                 session.clear()
 
-        if request.method in UNSAFE_METHODS and not csrf_valid():
+        if request.method in UNSAFE_METHODS and request.endpoint not in CSRF_EXEMPT_ENDPOINTS and not csrf_valid():
             abort(400, description="Phiên làm việc đã hết hạn, hãy tải lại trang rồi thử lại.")
 
         if g.user is None and request.endpoint not in PUBLIC_ENDPOINTS:

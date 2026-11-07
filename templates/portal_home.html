@@ -30,7 +30,7 @@
                     </span>
                     <span class="portal-bill-amount">
                         <strong>{{ bill.TotalAmount|money }}</strong>
-                        {% if bill.PaidAt %}<span class="pay-pill is-paid">{{ icon("check", 12) }} Đã trả</span>{% else %}<span class="pay-pill is-unpaid">Chưa trả</span>{% endif %}
+                        {% if bill.PaidAt %}<span class="pay-pill is-paid">{{ icon("check", 12) }} Đã trả</span>{% elif bill.TenantReportedPaidAt %}<span class="pay-pill is-reported">Chờ xác nhận</span>{% else %}<span class="pay-pill is-unpaid">Chưa trả</span>{% endif %}
                     </span>
                     {{ icon("chev-right", 16) }}
                 </a>

@@ -140,17 +140,17 @@
 
 {# Nút đánh dấu đã thu / chưa thu (app.js đổi trạng thái tại chỗ, không tải lại trang) #}
 {% macro paid_toggle(bill, size="") -%}
-<div class="paid-toggle {{ 'is-paid' if bill.PaidAt else '' }}" data-paid-scope onclick="event.stopPropagation()">
+<div class="paid-toggle {{ 'is-paid' if bill.PaidAt else '' }} {{ 'is-reported' if bill.TenantReportedPaidAt else '' }}" data-paid-scope onclick="event.stopPropagation()">
     <form method="post" action="{{ url_for('set_bill_paid', bill_id=bill.RoomMonthlyBillId) }}" data-paid-toggle>
         <input type="hidden" name="paid" value="{{ '0' if bill.PaidAt else '1' }}">
         <button type="submit" class="btn {{ size }} paid-btn" title="Bấm để đổi trạng thái thu tiền">
             <span class="when-paid">{{ icon("check", 15) }} Đã thu</span>
-            <span class="when-unpaid">{{ icon("wallet", 15) }} Chưa thu</span>
+            <span class="when-unpaid">{{ icon("wallet", 15) }} {{ "Khách báo đã CK · Xác nhận" if bill.TenantReportedPaidAt else "Chưa thu" }}</span>
         </button>
     </form>
 </div>
 {%- endmacro %}
 
 {% macro pay_pill(bill) -%}
-{% if bill.PaidAt %}<span class="pay-pill is-paid">{{ icon("check", 12) }} Đã thu</span>{% else %}<span class="pay-pill is-unpaid">Chưa thu</span>{% endif %}
+{% if bill.PaidAt %}<span class="pay-pill is-paid">{{ icon("check", 12) }} Đã thu</span>{% elif bill.TenantReportedPaidAt %}<span class="pay-pill is-reported">Khách báo đã CK</span>{% else %}<span class="pay-pill is-unpaid">Chưa thu</span>{% endif %}
 {%- endmacro %}

@@ -12,14 +12,16 @@ import secrets
 from io import BytesIO
 from typing import Any
 
-from flask import Flask, Response, abort, render_template, send_file, url_for
+from flask import Flask, Response, abort, redirect, render_template, send_file, url_for
 
 from . import auth
 from . import queries as q
 from .notify import bill_image_filename, bill_notice_image_bytes, bill_payment_qr_bytes
 
 TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_-]{32,64}$")
-PORTAL_ENDPOINTS = {"portal_home", "portal_bill", "portal_qr", "portal_notice", "portal_manifest"}
+PORTAL_ENDPOINTS = {"portal_home", "portal_bill", "portal_qr", "portal_notice", "portal_manifest", "portal_report_paid"}
+# POST từ app của khách: không dùng phiên/CSRF; mã bí mật trong URL đóng vai trò khóa chống giả mạo
+CSRF_EXEMPT_ENDPOINTS = {"portal_report_paid"}
 
 
 def new_token() -> str:
@@ -51,6 +53,7 @@ def no_store(response: Response) -> Response:
 
 def register_portal(app: Flask) -> None:
     auth.PUBLIC_ENDPOINTS.update(PORTAL_ENDPOINTS)
+    auth.CSRF_EXEMPT_ENDPOINTS.update(CSRF_EXEMPT_ENDPOINTS)
 
     @app.get("/k/<token>")
     def portal_home(token: str):
@@ -74,6 +77,13 @@ def register_portal(app: Flask) -> None:
         tenant, bill = tenant_bill_or_404(token, bill_id)
         html = render_template("portal_bill.html", token=token, tenant=tenant, bill=bill, payment_settings=q.payment_settings())
         return no_store(Response(html))
+
+    @app.post("/k/<token>/hoa-don/<int:bill_id>/da-chuyen")
+    def portal_report_paid(token: str, bill_id: int):
+        _, bill = tenant_bill_or_404(token, bill_id)
+        if not bill.PaidAt:
+            q.report_tenant_paid(bill_id)
+        return redirect(url_for("portal_bill", token=token, bill_id=bill_id, reported=1))
 
     @app.get("/k/<token>/hoa-don/<int:bill_id>/qr.png")
     def portal_qr(token: str, bill_id: int):
