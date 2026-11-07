@@ -107,3 +107,22 @@ def test_tenant_portal_on_phone(phone, base_url):
     page.goto(f"{base_url}/k/{token}")
     assert page.locator("h1").inner_text().startswith("Chào")
     assert no_overflow(page)
+
+
+def test_tenant_reports_payment_on_phone(phone, base_url):
+    browser, device = phone
+    tenant = q.tenant_list()[1]
+    if not tenant.PortalToken:
+        from src.portal import new_token
+
+        q.set_tenant_portal_token(tenant.TenantId, new_token())
+    token = q.tenant_portal_token(tenant.TenantId)
+    bill = q.tenant_bills(q.tenant_by_portal_token(token))[0]
+    q.set_bill_paid(bill.RoomMonthlyBillId, False)
+    page = browser.new_context(**device).new_page()
+    page.goto(f"{base_url}/k/{token}/hoa-don/{bill.RoomMonthlyBillId}")
+    if page.locator("text=Tôi đã chuyển khoản").count():
+        page.locator("text=Tôi đã chuyển khoản").tap()
+        page.wait_for_load_state("networkidle")
+    assert "chờ chủ nhà xác nhận" in page.content()
+    assert q.get_bill(bill.RoomMonthlyBillId).TenantReportedPaidAt is not None
