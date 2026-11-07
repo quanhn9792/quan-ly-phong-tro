@@ -140,10 +140,11 @@ templates/, static/   giao diện
 
 ```powershell
 pip install -r requirements-dev.txt
+python -m playwright install chromium webkit   # cho test giao diện điện thoại (tùy chọn)
 pytest
 ```
 
-Test chạy trên database riêng `QuanLyPhongTro_PyTest` (tạo mới mỗi lần), không đụng dữ liệu thật.
+Test chạy trên database riêng `QuanLyPhongTro_PyTest` (tạo mới mỗi lần), không đụng dữ liệu thật. `tests/test_e2e_mobile.py` mở app trong trình duyệt giả lập Android (Chromium, Pixel 7) và iPhone (WebKit, iPhone 13): kiểm tra tràn màn hình, menu, đánh dấu thu tiền, app của khách; tự bỏ qua nếu chưa cài Playwright.
 
 ## Xem database bằng giao diện
 
