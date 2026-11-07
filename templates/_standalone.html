@@ -12,6 +12,7 @@
     <title>{% block title %}{% endblock %} · Quản lý cho thuê</title>
     {% block manifest %}<link rel="manifest" href="/manifest.webmanifest">{% endblock %}
     <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+    {% include "_ios_splash.html" %}
     <link rel="icon" href="/static/icons/icon-192.png">
     <link rel="stylesheet" href="/static/styles.css?v={{ asset_v() }}">
 </head>
