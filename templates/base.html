@@ -75,7 +75,7 @@
                 <div class="nav-group">
                     <span class="nav-group-label">{{ group_label }}</span>
                     {% for target, label, icon_name, active_on in items %}
-                        <a href="{{ url_for(target) }}" class="nav-link {{ 'active' if endpoint in active_on else '' }}">
+                        <a href="{{ url_for(target) }}" class="nav-link {{ 'active' if endpoint in active_on else '' }}" {{ 'aria-current="page"'|safe if endpoint in active_on else '' }}>
                             {{ icon(icon_name) }}<span>{{ label }}</span>{% if target == "dashboard" and reported_count %}<b class="badge" title="Khách báo đã chuyển khoản">{{ reported_count }}</b>{% endif %}
                         </a>
                     {% endfor %}
@@ -98,7 +98,7 @@
     ] %}
     <nav class="tabbar" aria-label="Điều hướng nhanh">
         {% for target, label, icon_name, active_on in tab_items %}
-            <a href="{{ url_for(target) }}" class="tab {{ 'active' if endpoint in active_on else '' }}">
+            <a href="{{ url_for(target) }}" class="tab {{ 'active' if endpoint in active_on else '' }}" {{ 'aria-current="page"'|safe if endpoint in active_on else '' }}>
                 <span class="tab-icon">{{ icon(icon_name, 22) }}{% if target == "dashboard" and reported_count %}<b class="badge" aria-label="{{ reported_count }} khách báo đã chuyển khoản">{{ reported_count }}</b>{% endif %}</span>
                 <span>{{ label }}</span>
             </a>
