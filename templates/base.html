@@ -3,10 +3,20 @@
 <html lang="vi">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>{% block title %}Quản lý phòng trọ{% endblock %} · Quản lý cho thuê</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f766e'/%3E%3Cpath d='M8 15 16 8l8 7v9H8z' fill='white'/%3E%3C/svg%3E">
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=4">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#0f766e">
+    <meta name="color-scheme" content="light">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Cho thuê">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="{{ url_for('manifest') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+    {% include "_ios_splash.html" %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v={{ asset_v() }}">
 </head>
 <body>
     {% set endpoint = request.endpoint %}
@@ -24,9 +34,34 @@
         ("Cài đặt", [
             ("months_page", "Đơn giá dự phòng", "calendar", ["months_page"]),
             ("payment_settings_page", "QR & email", "settings", ["payment_settings_page"]),
+            ("install_page", "Cài lên điện thoại", "phone", ["install_page"]),
+            ("account_page", "Tài khoản", "users", ["account_page"]),
         ]),
     ] %}
-    <aside class="sidebar">
+    <header class="appbar">
+        <a class="brand" href="{{ url_for('dashboard') }}">
+            <span class="brand-mark">{{ icon("home", 18) }}</span>
+            <span class="brand-text">
+                <strong>Cho thuê</strong>
+                <small>{{ current_property.PropertyName if current_property else 'Quản lý thu tiền' }}</small>
+            </span>
+        </a>
+        {% if all_properties|length > 1 %}
+            <form method="post" action="{{ url_for('select_property') }}" class="appbar-switch">
+                <input type="hidden" name="next" value="{{ request.full_path.rstrip('?') }}">
+                <select name="property_id" onchange="this.form.submit()" aria-label="Đang xem nhà">
+                    <option value="">Tất cả nhà</option>
+                    {% for p in all_properties %}
+                        <option value="{{ p.PropertyId }}" {{ "selected" if current_property and current_property.PropertyId == p.PropertyId else "" }}>{{ p.PropertyName }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        {% endif %}
+        <button type="button" class="icon-btn appbar-refresh" onclick="location.reload()" aria-label="Tải lại">{{ icon("refresh", 18) }}</button>
+    </header>
+
+    <button type="button" class="menu-backdrop" data-menu-close tabindex="-1" aria-label="Đóng menu"></button>
+    <aside class="sidebar" id="app-menu">
         <a class="brand" href="{{ url_for('dashboard') }}">
             <span class="brand-mark">{{ icon("home", 20) }}</span>
             <span class="brand-text">
@@ -53,14 +88,36 @@
                 <div class="nav-group">
                     <span class="nav-group-label">{{ group_label }}</span>
                     {% for target, label, icon_name, active_on in items %}
-                        <a href="{{ url_for(target) }}" class="nav-link {{ 'active' if endpoint in active_on else '' }}">
-                            {{ icon(icon_name) }}<span>{{ label }}</span>
+                        <a href="{{ url_for(target) }}" class="nav-link {{ 'active' if endpoint in active_on else '' }}" {{ 'aria-current="page"'|safe if endpoint in active_on else '' }}>
+                            {{ icon(icon_name) }}<span>{{ label }}</span>{% if target == "dashboard" and reported_count %}<b class="badge" title="Khách báo đã chuyển khoản">{{ reported_count }}</b>{% endif %}
                         </a>
                     {% endfor %}
                 </div>
             {% endfor %}
         </nav>
+        {% if g.user %}
+            <form method="post" action="{{ url_for('logout') }}" class="sidebar-foot">
+                <span class="muted small">{{ g.user.Username }}</span>
+                <button type="submit" class="nav-link nav-button">{{ icon("logout") }}<span>Đăng xuất</span></button>
+            </form>
+        {% endif %}
     </aside>
+
+    {% set tab_items = [
+        ("dashboard", "Tổng quan", "home", ["dashboard"]),
+        ("bill_form", "Nhập số", "bolt", ["bill_form"]),
+        ("reports_page", "Báo cáo", "chart", ["reports_page", "bill_detail_page"]),
+        ("zalo_queue_page", "Gửi Zalo", "send", ["zalo_queue_page"]),
+    ] %}
+    <nav class="tabbar" aria-label="Điều hướng nhanh">
+        {% for target, label, icon_name, active_on in tab_items %}
+            <a href="{{ url_for(target) }}" class="tab {{ 'active' if endpoint in active_on else '' }}" {{ 'aria-current="page"'|safe if endpoint in active_on else '' }}>
+                <span class="tab-icon">{{ icon(icon_name, 22) }}{% if target == "dashboard" and reported_count %}<b class="badge" aria-label="{{ reported_count }} khách báo đã chuyển khoản">{{ reported_count }}</b>{% endif %}</span>
+                <span>{{ label }}</span>
+            </a>
+        {% endfor %}
+        <button type="button" class="tab" data-menu-toggle aria-controls="app-menu" aria-expanded="false">{{ icon("menu", 22) }}<span>Thêm</span></button>
+    </nav>
 
     <main class="page">
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -79,42 +136,7 @@
         {% block content %}{% endblock %}
     </main>
 
-    <script>
-        // Hiện số tiền đã định dạng dưới các ô nhập tiền (vd: 5000000 -> 5.000.000 VND)
-        (() => {
-            const parse = (raw) => {
-                let v = (raw || "").replace(/\s/g, "");
-                if (!v) return null;
-                if (v.includes(",") && v.includes(".")) {
-                    v = v.lastIndexOf(",") > v.lastIndexOf(".") ? v.replace(/\./g, "").replace(",", ".") : v.replace(/,/g, "");
-                } else if (/^\d{1,3}([.,]\d{3})+$/.test(v)) {
-                    v = v.replace(/[.,]/g, "");
-                } else {
-                    v = v.replace(",", ".");
-                }
-                const n = Number(v);
-                return Number.isFinite(n) ? n : null;
-            };
-            window.parseVnNumber = parse;
-            window.formatVnd = (n) => Math.round(n).toLocaleString("vi-VN") + " VND";
-            document.querySelectorAll("[data-money]").forEach((input) => {
-                const hint = input.parentElement.querySelector("[data-money-hint]");
-                if (!hint) return;
-                const fallback = hint.textContent;
-                const update = () => {
-                    const n = parse(input.value);
-                    hint.textContent = n === null ? fallback : "= " + window.formatVnd(n);
-                };
-                input.addEventListener("input", update);
-                update();
-            });
-            document.querySelectorAll("form[data-confirm]").forEach((form) => {
-                form.addEventListener("submit", (event) => {
-                    if (!confirm(form.dataset.confirm)) event.preventDefault();
-                });
-            });
-        })();
-    </script>
+    <script src="{{ url_for('static', filename='app.js') }}?v={{ asset_v() }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

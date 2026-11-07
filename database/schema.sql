@@ -301,6 +301,66 @@ BEGIN
 END;
 GO
 
+/* Cổng khách thuê: mỗi lượt thuê có 1 link bí mật /k/<PortalToken> */
+IF COL_LENGTH(N'dbo.Tenants', N'PortalToken') IS NULL
+BEGIN
+    ALTER TABLE dbo.Tenants ADD PortalToken NVARCHAR(64) NULL;
+END;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_Tenants_PortalToken' AND object_id = OBJECT_ID(N'dbo.Tenants'))
+BEGIN
+    CREATE UNIQUE INDEX UX_Tenants_PortalToken ON dbo.Tenants (PortalToken) WHERE PortalToken IS NOT NULL;
+END;
+GO
+
+/* Theo dõi đã thu tiền */
+IF COL_LENGTH(N'dbo.RoomMonthlyBills', N'PaidAt') IS NULL
+BEGIN
+    ALTER TABLE dbo.RoomMonthlyBills ADD PaidAt DATETIME2(0) NULL;
+    -- Lần đầu nâng cấp: coi hóa đơn các tháng TRƯỚC tháng hiện tại là đã thu
+    -- (trước đây chưa theo dõi), để không hiện cả lịch sử thành "còn nợ".
+    EXEC(N'
+        UPDATE b SET PaidAt = COALESCE(b.UpdatedAt, b.CreatedAt, SYSDATETIME())
+        FROM dbo.RoomMonthlyBills AS b
+        INNER JOIN dbo.BillingMonths AS bm ON bm.BillingMonthId = b.BillingMonthId
+        WHERE DATEFROMPARTS(bm.YearNumber, bm.MonthNumber, 1) < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1);
+    ');
+END;
+GO
+
+/* Khách bấm "Tôi đã chuyển khoản" trong app của khách */
+IF COL_LENGTH(N'dbo.RoomMonthlyBills', N'TenantReportedPaidAt') IS NULL
+BEGIN
+    ALTER TABLE dbo.RoomMonthlyBills ADD TenantReportedPaidAt DATETIME2(0) NULL;
+END;
+GO
+
+/* Số điện thoại / Zalo chủ nhà: hiện nút Gọi / Nhắn Zalo trong app của khách */
+IF COL_LENGTH(N'dbo.PaymentSettings', N'OwnerPhone') IS NULL
+BEGIN
+    ALTER TABLE dbo.PaymentSettings ADD OwnerPhone NVARCHAR(30) NULL;
+END;
+GO
+
+/* ===== Tài khoản đăng nhập (chủ nhà) ===== */
+IF OBJECT_ID(N'dbo.AppUsers', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.AppUsers
+    (
+        UserId INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_AppUsers PRIMARY KEY,
+        Username NVARCHAR(50) NOT NULL CONSTRAINT UQ_AppUsers_Username UNIQUE,
+        PasswordHash NVARCHAR(255) NOT NULL,
+        UserRole NVARCHAR(20) NOT NULL CONSTRAINT DF_AppUsers_UserRole DEFAULT (N'OWNER'),
+        IsActive BIT NOT NULL CONSTRAINT DF_AppUsers_IsActive DEFAULT (1),
+        LastLoginAt DATETIME2(0) NULL,
+        CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_AppUsers_CreatedAt DEFAULT (SYSDATETIME()),
+        UpdatedAt DATETIME2(0) NULL,
+        CONSTRAINT CK_AppUsers_UserRole CHECK (UserRole IN (N'OWNER', N'TENANT'))
+    );
+END;
+GO
+
 /* ===== Views ===== */
 CREATE OR ALTER VIEW dbo.v_CurrentRoomTenants
 AS
@@ -344,6 +404,7 @@ SELECT
     contact.Phone AS TenantPhone,
     contact.ZaloPhone AS TenantZaloPhone,
     contact.ZaloUserId AS TenantZaloUserId,
+    contact.PortalToken AS TenantPortalToken,
     b.RentAmount,
     b.ServiceFee,
     b.LaundryFee,
@@ -361,6 +422,8 @@ SELECT
     (b.RentAmount + b.ServiceFee + b.LaundryFee + b.ElectricityAmount + b.WaterAmount) AS TotalAmount,
     b.Note,
     b.PaymentQrContent,
+    b.PaidAt,
+    b.TenantReportedPaidAt,
     b.CreatedAt,
     b.UpdatedAt
 FROM dbo.RoomMonthlyBills AS b
@@ -386,7 +449,7 @@ OUTER APPLY
 ) AS month_tenants
 OUTER APPLY
 (
-    SELECT TOP 1 t.Email, t.Phone, t.ZaloPhone, t.ZaloUserId
+    SELECT TOP 1 t.Email, t.Phone, t.ZaloPhone, t.ZaloUserId, t.PortalToken
     FROM dbo.Tenants AS t
     WHERE t.RoomId = b.RoomId
       AND (t.MoveInDate IS NULL OR t.MoveInDate <= period.MonthEnd)

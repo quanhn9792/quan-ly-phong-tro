@@ -124,6 +124,7 @@
                     <input name="note" maxlength="500" value="{{ existing_bill.Note or '' if existing_bill else '' }}">
                 </label>
 
+                <div class="mobile-total" aria-hidden="true"><span>Tổng cộng</span><strong id="m-total">—</strong></div>
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary btn-lg">{{ icon("check") }} {{ "Lưu thay đổi" if existing_bill else "Lưu & sang phòng tiếp" }}</button>
                     {% if existing_bill %}
@@ -182,7 +183,7 @@
             $("r-w-usage").textContent = wu === null ? "" : "(" + fmtNum(wu) + " m³)";
             $("r-e-amount").textContent = ea === null ? "—" : fmt(ea);
             $("r-w-amount").textContent = wa === null ? "—" : fmt(wa);
-            $("r-total").textContent = fmt(fixed + (ea ?? 0) + (wa ?? 0));
+            $("r-total").textContent = $("m-total").textContent = fmt(fixed + (ea ?? 0) + (wa ?? 0));
         };
         form.addEventListener("input", update);
         update();

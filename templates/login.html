@@ -1,0 +1,52 @@
+{% extends "_standalone.html" %}
+
+{% block title %}Đăng nhập{% endblock %}
+
+{% block content %}
+<section class="card auth-card">
+    <div class="card-body form-stack">
+        <h1>Đăng nhập</h1>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <div class="flash flash-{{ category }}">{{ icon("check" if category == "success" else "alert") }}<span>{{ message }}</span></div>
+            {% endfor %}
+        {% endwith %}
+
+        {% if no_user %}
+            <div class="callout callout-warn">
+                {{ icon("alert") }}
+                <div>
+                    <strong>Chưa có tài khoản</strong>
+                    <span>Trên máy chủ, mở PowerShell trong thư mục dự án và chạy <code>python main.py create-owner</code>, sau đó tải lại trang.</span>
+                </div>
+            </div>
+        {% else %}
+            <form method="post" class="form-stack">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="next" value="{{ next_url }}">
+                <label class="field">
+                    <span class="field-label">Tên đăng nhập</span>
+                    <input name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required autofocus>
+                </label>
+                <label class="field">
+                    <span class="field-label">Mật khẩu</span>
+                    <input type="password" name="password" autocomplete="current-password" required>
+                </label>
+                <label class="check">
+                    <input type="checkbox" name="remember" value="1" checked>
+                    <span>Ghi nhớ trên thiết bị này (30 ngày)</span>
+                </label>
+                <button type="submit" class="btn btn-primary btn-block">Đăng nhập</button>
+            </form>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Đã đăng xuất / hết phiên: xóa các trang đã lưu offline trên máy này (có dữ liệu khách thuê)
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage("clear-pages");
+    if (window.caches) caches.delete("pages-v1").catch(() => {});
+</script>
+{% endblock %}

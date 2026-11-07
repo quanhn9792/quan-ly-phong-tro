@@ -1,22 +1,33 @@
 from __future__ import annotations
 
+import csv
+import gzip
+import hashlib
 import os
 import secrets
 from datetime import date
 from decimal import Decimal
-from io import BytesIO
+from io import BytesIO, StringIO
+from pathlib import Path
 from typing import Any
 from zipfile import ZIP_DEFLATED, ZipFile
 
 import pyodbc
-from flask import Flask, abort, flash, redirect, render_template, request, send_file, session, url_for
+import qrcode
+from flask import Flask, abort, flash, g, redirect, render_template, request, send_file, send_from_directory, session, url_for
+from flask.sessions import SecureCookieSessionInterface
+from werkzeug.exceptions import HTTPException
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from . import queries as q
+from .auth import register_auth, safe_next
+from .portal import new_token, register_portal
 from .db import PROJECT_ROOT, init_database
 from .formatting import format_date, format_money, format_number, money_input, parse_decimal
 from .notify import (
     bill_image_filename,
     bill_notice_image_bytes,
+    bill_notice_thumb_bytes,
     bill_payment_qr_bytes,
     binary_value,
     email_settings_ready,
@@ -140,10 +151,87 @@ def secret_key() -> str:
     return key_file.read_text(encoding="utf-8").strip()
 
 
+def via_public_https() -> bool:
+    """Request đi qua HTTPS: trực tiếp, qua proxy có X-Forwarded-Proto, hoặc tới đúng host của PUBLIC_URL dạng https
+    (Tailscale Funnel không gửi X-Forwarded-Proto nhưng luôn là HTTPS)."""
+    if request.is_secure:
+        return True
+    public = os.getenv("PUBLIC_URL", "").strip().lower()
+    if os.getenv("TRUST_PROXY") != "1" or not public.startswith("https://"):
+        return False
+    return request.host.lower() == public.removeprefix("https://").split("/")[0]
+
+
+class HttpsAwareSessionInterface(SecureCookieSessionInterface):
+    def get_cookie_secure(self, app: Flask) -> bool:
+        return bool(app.config.get("SESSION_COOKIE_SECURE")) or via_public_https()
+
+
+def asset_version(static_folder: str) -> str:
+    """Mã phiên bản file tĩnh = hash nội dung CSS/JS: sửa file là điện thoại tự tải bản mới, không cần đổi tay ?v=."""
+    digest = hashlib.sha256()
+    for name in ("styles.css", "app.js", "zalo.js", "sw.js"):
+        path = Path(static_folder) / name
+        if path.exists():
+            digest.update(path.read_bytes())
+    return digest.hexdigest()[:10]
+
+
+def portal_url(token: str) -> str:
+    """Link gửi khách. Ưu tiên PUBLIC_URL (địa chỉ tunnel) vì chủ nhà có thể đang mở web bằng 127.0.0.1."""
+    path = url_for("portal_home", token=token)
+    public = os.getenv("PUBLIC_URL", "").strip().rstrip("/")
+    return public + path if public else request.host_url.rstrip("/") + path
+
+
+def is_local_host() -> bool:
+    host = request.host.split(":")[0]
+    return not os.getenv("PUBLIC_URL") and host in {"127.0.0.1", "localhost", "::1", "[::1]"}
+
+
+COMPRESSIBLE_TYPES = {"text/html", "text/css", "text/plain", "application/javascript", "text/javascript",
+                      "application/json", "application/manifest+json", "image/svg+xml"}
+
+
+def compress_response(response):
+    """Nén gzip HTML/CSS/JS: nhỏ đi ~5 lần, đáng kể khi dùng 4G qua tunnel."""
+    if (
+        response.status_code != 200
+        or response.mimetype not in COMPRESSIBLE_TYPES
+        or "Content-Encoding" in response.headers
+        or "gzip" not in request.headers.get("Accept-Encoding", "").lower()
+    ):
+        return response
+    response.direct_passthrough = False
+    data = response.get_data()
+    response.close()  # đóng file gốc (send_file) trước khi thay bằng bản nén, tránh rò file handle
+    if len(data) < 1024:
+        response.set_data(data)
+        return response
+    response.set_data(gzip.compress(data, compresslevel=6))
+    response.headers["Content-Encoding"] = "gzip"
+    response.headers.add("Vary", "Accept-Encoding")
+    if response.headers.get("ETag"):
+        etag, weak = response.get_etag()
+        if etag:
+            response.set_etag(etag, weak=True)
+    return response
+
+
 def create_app() -> Flask:
     app = Flask(__name__, template_folder=str(PROJECT_ROOT / "templates"), static_folder=str(PROJECT_ROOT / "static"))
     app.config["SECRET_KEY"] = secret_key()
     app.config["MAX_CONTENT_LENGTH"] = 6 * 1024 * 1024
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 86400  # file tĩnh: cache 1 ngày (đổi ?v= để cập nhật ngay)
+    app.config["TEMPLATES_AUTO_RELOAD"] = os.getenv("TEMPLATES_AUTO_RELOAD") == "1"  # tiện khi sửa giao diện
+    if os.getenv("TRUST_PROXY") == "1":
+        # Chạy sau Tailscale Funnel / Cloudflare Tunnel: lấy đúng IP + https của người dùng
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)  # type: ignore[method-assign]
+    # Cookie phiên chỉ gắn cờ Secure khi request đi qua HTTPS (tunnel); mở bằng http://127.0.0.1 trên máy vẫn đăng nhập được
+    app.session_interface = HttpsAwareSessionInterface()
+    register_auth(app)
+    register_portal(app)
+    app.after_request(compress_response)
 
     app.jinja_env.filters.update(
         money=format_money,
@@ -158,10 +246,20 @@ def create_app() -> Flask:
         image_filename=bill_image_filename,
         zalo_phone=zalo_phone,
     )
-    app.jinja_env.globals.update(shift_month=q.shift_month, today=date.today)
+    app.jinja_env.globals.update(shift_month=q.shift_month, today=date.today, portal_url=portal_url, is_local_host=is_local_host)
+
+    def current_asset_version() -> str:
+        # Khi đang sửa giao diện (TEMPLATES_AUTO_RELOAD) tính lại mỗi lần, bình thường tính 1 lần lúc khởi động
+        if app.config["TEMPLATES_AUTO_RELOAD"]:
+            return asset_version(app.static_folder)
+        return app.config.setdefault("ASSET_VERSION", asset_version(app.static_folder))
+
+    app.jinja_env.globals["asset_v"] = current_asset_version
 
     @app.context_processor
     def inject_properties():
+        if g.get("user") is None:
+            return {"all_properties": [], "current_property": None, "show_property": False, "reported_count": 0}
         try:
             properties = q.property_list()
         except pyodbc.Error:
@@ -170,15 +268,70 @@ def create_app() -> Flask:
         current = next((p for p in properties if p.PropertyId == current_id), None)
         if current_id and current is None:
             session.pop("property_id", None)
+        try:
+            reported_count = q.tenant_reported_count(current.PropertyId if current else None)
+        except pyodbc.Error:
+            reported_count = 0
         return {
             "all_properties": properties,
             "current_property": current,
             "show_property": current is None and len(properties) > 1,
+            "reported_count": reported_count,
         }
 
     @app.errorhandler(pyodbc.Error)
     def handle_db_error(error: pyodbc.Error):
+        app.logger.error("Lỗi database: %s", error)
+        if g.get("user") is None:
+            # Người ngoài (khách mở link, người lạ): không lộ chi tiết server/database
+            return render_template("http_error.html", code=503, title="Hệ thống đang bận",
+                                   message="Máy chủ chưa sẵn sàng. Vui lòng thử lại sau ít phút."), 503
         return render_template("error.html", error=str(error)), 500
+
+    @app.errorhandler(HTTPException)
+    def handle_http_error(error: HTTPException):
+        if error.code is None or error.code < 400:
+            return error  # redirect nội bộ của Flask (vd thêm dấu /)
+        if request.method != "GET" and error.code == 400 and g.get("user") is not None:
+            flash(error.description or "Yêu cầu không hợp lệ.", "error")
+            return back()
+        titles = {400: "Yêu cầu không hợp lệ", 401: "Cần đăng nhập", 403: "Không có quyền", 404: "Không tìm thấy trang",
+                  405: "Thao tác không được hỗ trợ", 413: "File quá lớn"}
+        messages = {404: "Link có thể đã sai hoặc đã bị thu hồi. Hãy hỏi lại chủ nhà nếu bạn là khách thuê.",
+                    413: "File tải lên lớn hơn giới hạn cho phép (6 MB)."}
+        code = error.code or 500
+        return render_template("http_error.html", code=code, title=titles.get(code, "Có lỗi xảy ra"),
+                               message=messages.get(code, error.description)), code
+
+    # ----- PWA: cài lên màn hình chính điện thoại -----
+
+    @app.get("/sw.js")
+    def service_worker():
+        # Service worker phải nằm ở gốc "/" để điều khiển được mọi trang
+        script = (Path(app.static_folder) / "sw.js").read_text(encoding="utf-8")
+        response = app.response_class(script.replace("__ASSET_VERSION__", current_asset_version()), mimetype="application/javascript")
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+    @app.get("/manifest.webmanifest")
+    def manifest():
+        return send_from_directory(app.static_folder, "manifest.webmanifest", mimetype="application/manifest+json", max_age=3600)
+
+    @app.get("/.well-known/assetlinks.json")
+    def assetlinks():
+        # Cho app Android đóng gói bằng PWABuilder / Bubblewrap (Trusted Web Activity) mở toàn màn hình
+        package = os.getenv("ANDROID_PACKAGE", "").strip()
+        fingerprints = [f.strip() for f in os.getenv("ANDROID_CERT_SHA256", "").split(",") if f.strip()]
+        if not package or not fingerprints:
+            abort(404)
+        return [{
+            "relation": ["delegate_permission/common.handle_all_urls"],
+            "target": {"namespace": "android_app", "package_name": package, "sha256_cert_fingerprints": fingerprints},
+        }]
+
+    @app.get("/offline")
+    def offline_page():
+        return render_template("offline.html")
 
     @app.post("/select-property")
     def select_property():
@@ -187,8 +340,8 @@ def create_app() -> Flask:
             session["property_id"] = int(value)
         else:
             session.pop("property_id", None)
-        target = request.form.get("next", "")
-        return redirect(target) if target.startswith("/") and not target.startswith("//") else back()
+        target = safe_next(request.form.get("next"))  # chặn cả "//evil" và "/\evil"
+        return redirect(target) if target else back()
 
     @app.get("/")
     def dashboard():
@@ -206,6 +359,10 @@ def create_app() -> Flask:
             bills=bills,
             bills_by_room={bill.RoomId: bill for bill in bills},
             total=sum((Decimal(bill.TotalAmount) for bill in bills), Decimal("0")),
+            paid_total=sum((Decimal(bill.TotalAmount) for bill in bills if bill.PaidAt), Decimal("0")),
+            paid_count=sum(1 for bill in bills if bill.PaidAt),
+            overdue=q.unpaid_bills_before(year, month, property_id),
+            reported=q.tenant_reported_unpaid(property_id),
             configured_month=q.get_month(year, month),
         )
 
@@ -438,6 +595,28 @@ def create_app() -> Flask:
         flash("Đã chuyển khách thuê sang trạng thái đã ngưng thuê.", "success")
         return redirect(url_for("tenants_page"))
 
+    @app.post("/tenants/portal-links")
+    def create_all_portal_links():
+        created = 0
+        for tenant in q.tenant_list(selected_property_id()):
+            if tenant.IsCurrent and not tenant.PortalToken:
+                q.set_tenant_portal_token(int(tenant.TenantId), new_token())
+                created += 1
+        flash(f"Đã tạo link app cho {created} khách đang thuê." if created else "Tất cả khách đang thuê đều đã có link.", "success")
+        return redirect(url_for("tenants_page"))
+
+    @app.post("/tenants/<int:tenant_id>/portal-link")
+    def tenant_portal_link(tenant_id: int):
+        if q.one("SELECT 1 AS Found FROM dbo.Tenants WHERE TenantId = ?;", (tenant_id,)) is None:
+            abort(404)
+        if request.form.get("action") == "revoke":
+            q.set_tenant_portal_token(tenant_id, None)
+            flash("Đã thu hồi link của khách. Link cũ không còn mở được.", "success")
+        else:
+            q.set_tenant_portal_token(tenant_id, new_token())
+            flash("Đã tạo link mới cho khách. Bấm \"Copy link\" rồi gửi qua Zalo.", "success")
+        return redirect(url_for("tenants_page") + f"#tenant-{tenant_id}")
+
     # ----- Đơn giá tháng -----
 
     @app.route("/months", methods=["GET", "POST"])
@@ -547,6 +726,7 @@ def create_app() -> Flask:
             year_total=sum((Decimal(item.TotalAmount) for item in month_summaries), Decimal("0")),
             bills=bills,
             total=sum((Decimal(bill.TotalAmount) for bill in bills), Decimal("0")),
+            paid_total=sum((Decimal(bill.TotalAmount) for bill in bills if bill.PaidAt), Decimal("0")),
         )
 
     def bill_or_404(bill_id: int) -> Any:
@@ -569,6 +749,11 @@ def create_app() -> Flask:
     def bill_payment_qr(bill_id: int):
         data = bill_payment_qr_bytes(bill_or_404(bill_id), q.payment_settings())
         return send_file(BytesIO(data), mimetype="image/png", max_age=0)
+
+    @app.get("/reports/bills/<int:bill_id>/thumb.jpg")
+    def bill_notice_thumb(bill_id: int):
+        data = bill_notice_thumb_bytes(bill_or_404(bill_id), q.payment_settings())
+        return send_file(BytesIO(data), mimetype="image/jpeg", max_age=0)
 
     @app.get("/reports/bills/<int:bill_id>/notice.png")
     def bill_notice_image(bill_id: int):
@@ -641,11 +826,46 @@ def create_app() -> Flask:
         }
         return render_template("zalo_send.html", year=year, month=month, bills=bills, sent_ids=sent_ids)
 
+    @app.post("/reports/bills/<int:bill_id>/paid")
+    def set_bill_paid(bill_id: int):
+        bill = bill_or_404(bill_id)
+        paid = request.form.get("paid") == "1"
+        q.set_bill_paid(bill_id, paid)
+        if request.headers.get("X-Requested-With") == "fetch":
+            return {"paid": paid}
+        flash(f"{bill.RoomCode} tháng {bill.MonthNumber:02d}/{bill.YearNumber}: {'đã thu tiền' if paid else 'chuyển về chưa thu'}.", "success")
+        return back("bill_detail_page", bill_id=bill_id)
+
     @app.post("/reports/bills/<int:bill_id>/zalo-sent")
     def log_zalo_sent(bill_id: int):
         bill = bill_or_404(bill_id)
         q.log_bill_delivery(bill_id, "ZALO", zalo_phone(bill), "SENT")
         return "", 204
+
+    @app.get("/reports/export.csv")
+    def export_month_csv():
+        """Báo cáo tháng ra CSV (mở bằng Excel): mỗi hóa đơn 1 dòng, kèm trạng thái thu tiền."""
+        year, month = year_month_from_args()
+        bills = q.month_bills(year, month, selected_property_id())
+        buffer = StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(["Nhà", "Phòng/căn", "Khách thuê", "Điện thoại", "Tiền thuê", "Phí dịch vụ", "Máy giặt",
+                         "Điện cũ", "Điện mới", "Số điện (kWh)", "Tiền điện", "Nước cũ", "Nước mới", "Số nước (m3)",
+                         "Tiền nước", "Tổng", "Trạng thái", "Ngày thu", "Ghi chú"])
+
+        def safe(value: Any) -> Any:
+            # Chặn công thức Excel (CSV injection) trong dữ liệu chữ do người dùng nhập
+            return "'" + value if isinstance(value, str) and value[:1] in ("=", "+", "-", "@") else value
+
+        for b in bills:
+            status = "Đã thu" if b.PaidAt else ("Khách báo đã CK" if b.TenantReportedPaidAt else "Chưa thu")
+            writer.writerow([safe(b.PropertyName), safe(b.RoomCode), safe(b.TenantNames or ""), safe(b.TenantPhone or ""),
+                             b.RentAmount, b.ServiceFee, b.LaundryFee, b.ElectricOld, b.ElectricNew, b.ElectricUsage,
+                             b.ElectricityAmount, b.WaterOld, b.WaterNew, b.WaterUsage, b.WaterAmount, b.TotalAmount,
+                             status, b.PaidAt.strftime("%d/%m/%Y") if b.PaidAt else "", safe(b.Note or "")])
+        data = buffer.getvalue().encode("utf-8-sig")  # BOM để Excel đọc đúng tiếng Việt
+        return send_file(BytesIO(data), mimetype="text/csv", as_attachment=True,
+                         download_name=f"bao-cao-{year}-{month:02d}.csv", max_age=0)
 
     @app.post("/reports/export-month-images")
     def export_month_images():
@@ -667,6 +887,35 @@ def create_app() -> Flask:
                 q.log_bill_delivery(int(bill.RoomMonthlyBillId), "EXPORT", None, "EXPORTED")
         buffer.seek(0)
         return send_file(buffer, mimetype="application/zip", as_attachment=True, download_name=f"anh-gui-khach-{year}-{month:02d}.zip", max_age=0)
+
+    # ----- Cài lên điện thoại -----
+
+    def app_public_url() -> str | None:
+        public = os.getenv("PUBLIC_URL", "").strip().rstrip("/")
+        if public:
+            return public
+        return None if is_local_host() else request.host_url.rstrip("/")
+
+    @app.get("/install")
+    def install_page():
+        url = app_public_url()
+        checks = [
+            ("Đã đặt địa chỉ công khai (PUBLIC_URL)", bool(os.getenv("PUBLIC_URL")),
+             r"Chạy scripts\setup_mobile.ps1 hoặc thêm PUBLIC_URL vào instance\web.env"),
+            ("Chạy sau tunnel (TRUST_PROXY=1)", os.getenv("TRUST_PROXY") == "1", r"Thêm TRUST_PROXY=1 vào instance\web.env"),
+            ("Địa chỉ dùng HTTPS", bool(url and url.startswith("https://")), "PWA và nút Chia sẻ chỉ chạy trên HTTPS"),
+        ]
+        return render_template("install.html", url=url, checks=checks)
+
+    @app.get("/install/qr.png")
+    def install_qr():
+        url = app_public_url()
+        if not url:
+            abort(404)
+        image = qrcode.make(url, box_size=8, border=2)
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+        return send_file(BytesIO(buffer.getvalue()), mimetype="image/png", max_age=0)
 
     # ----- Cài đặt QR & email -----
 
@@ -720,6 +969,7 @@ def create_app() -> Flask:
                 return redirect(url_for("payment_settings_page"))
             qr = (data, qr_file.mimetype, qr_file.filename[:255])
         q.save_qr_settings(form_text("account_info", max_length=500), qr)
+        q.save_owner_phone(form_text("owner_phone", max_length=30))
         flash("Đã cập nhật mã QR thanh toán.", "success")
         return redirect(url_for("payment_settings_page"))
 

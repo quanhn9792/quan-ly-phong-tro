@@ -1,0 +1,14 @@
+{% extends "_standalone.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<section class="card auth-card">
+    <div class="card-body form-stack">
+        <p class="eyebrow">Lỗi {{ code }}</p>
+        <h1>{{ title }}</h1>
+        {% if message %}<p class="muted">{{ message }}</p>{% endif %}
+        <a class="btn btn-primary btn-block" href="/">Về trang chính</a>
+    </div>
+</section>
+{% endblock %}

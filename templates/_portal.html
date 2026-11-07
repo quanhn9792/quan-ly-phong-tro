@@ -1,0 +1,36 @@
+{% extends "_standalone.html" %}
+{% from "_macros.html" import icon with context %}
+{% block manifest %}<link rel="manifest" href="{{ url_for('portal_manifest', token=token) }}">{% endblock %}
+{% block main %}
+{% set unit = tenant.PropertyName if tenant.PropertyType in ("WHOLE_HOUSE", "APARTMENT") else tenant.RoomCode %}
+<header class="portal-bar">
+    <a class="brand" href="{{ url_for('portal_home', token=token) }}">
+        <span class="brand-mark">{{ icon("home", 18) }}</span>
+        <span class="brand-text">
+            <strong>{{ unit }}</strong>
+            <small>{{ tenant.PropertyName if unit != tenant.PropertyName else (tenant.Address or "Tiền nhà hằng tháng") }}</small>
+        </span>
+    </a>
+</header>
+<main class="portal">
+    {% block content %}{% endblock %}
+    {% if owner_phone %}
+        <section class="card portal-contact">
+            <div class="card-body">
+                <strong>Liên hệ chủ nhà</strong>
+                <div class="portal-contact-actions">
+                    <a class="btn btn-ghost" href="tel:{{ owner_phone }}">{{ icon("phone") }} Gọi</a>
+                    <a class="btn btn-ghost" href="https://zalo.me/{{ owner_phone }}" target="_blank" rel="noopener">{{ icon("send") }} Nhắn Zalo</a>
+                </div>
+            </div>
+        </section>
+    {% endif %}
+    <p class="portal-foot muted small">Link này dành riêng cho {{ tenant.FullName }}. Vui lòng không chia sẻ cho người khác.</p>
+</main>
+{% endblock %}
+{% block scripts %}
+<script>
+    // Lưu trang + QR để xem / quét được cả khi máy chủ của chủ nhà đang tắt
+    if ("serviceWorker" in navigator && window.isSecureContext) navigator.serviceWorker.register("/sw.js").catch(() => {});
+</script>
+{% endblock %}

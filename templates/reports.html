@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, unit_name, unit_sub with context %}
+{% from "_macros.html" import icon, paid_toggle, unit_name, unit_sub with context %}
 
 {% block title %}Báo cáo{% endblock %}
 
@@ -63,6 +63,7 @@
                         <input type="hidden" name="month" value="{{ month }}">
                         <button type="submit" class="btn btn-ghost">{{ icon("download") }} Tải ảnh (zip)</button>
                     </form>
+                    <a class="btn btn-ghost" href="{{ url_for('export_month_csv', year=year, month=month) }}">{{ icon("download") }} Xuất Excel</a>
                     <form method="post" action="{{ url_for('send_month_email') }}"
                           data-confirm="Gửi email thông báo thanh toán tháng {{ '%02d'|format(month) }}/{{ year }} cho tất cả khách có email?">
                         <input type="hidden" name="year" value="{{ year }}">
@@ -75,7 +76,7 @@
         </div>
         {% if bills %}
             <div class="table-wrap">
-                <table class="table">
+                <table class="table table-cards">
                     <thead>
                         <tr>
                             <th>Phòng / căn</th>
@@ -84,6 +85,7 @@
                             <th class="num">Điện</th>
                             <th class="num">Nước</th>
                             <th class="num">Tổng</th>
+                            <th>Thu tiền</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -107,6 +109,7 @@
                                     <small class="cell-sub">{{ bill.WaterUsage|num }} m³</small>
                                 </td>
                                 <td class="num"><strong>{{ bill.TotalAmount|money }}</strong></td>
+                                <td>{{ paid_toggle(bill, "btn-sm") }}</td>
                                 <td class="num">
                                     <a class="btn btn-ghost btn-sm" href="{{ url_for('bill_detail_page', bill_id=bill.RoomMonthlyBillId) }}">{{ icon("send", 14) }} Gửi khách</a>
                                 </td>
@@ -117,7 +120,7 @@
                         <tr>
                             <td colspan="5">Tổng tháng</td>
                             <td class="num"><strong>{{ total|money }}</strong></td>
-                            <td></td>
+                            <td colspan="2" class="muted">Đã thu {{ paid_total|money }}</td>
                         </tr>
                     </tfoot>
                 </table>

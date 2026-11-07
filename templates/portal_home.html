@@ -1,0 +1,49 @@
+{% extends "_portal.html" %}
+{% from "_macros.html" import icon with context %}
+
+{% block title %}Tiền nhà{% endblock %}
+
+{% block content %}
+<h1 class="portal-hello">Chào {{ tenant.FullName.split(" ")[-1] }} 👋</h1>
+
+{% if not latest %}
+    <div class="empty-card">{{ icon("calendar", 28) }}<strong>Chưa có hóa đơn nào</strong><span class="muted">Khi chủ nhà nhập chỉ số điện nước, hóa đơn sẽ hiện ở đây.</span></div>
+{% else %}
+    {% if unpaid_count %}
+        <a class="stat stat-accent portal-due" href="{{ url_for('portal_bill', token=token, bill_id=latest.RoomMonthlyBillId) if not latest.PaidAt else '#bills' }}">
+            <span class="stat-label">{{ icon("wallet") }} Cần thanh toán</span>
+            <strong class="stat-value">{{ unpaid_total|money }}</strong>
+            <span class="stat-sub">{{ unpaid_count }} hóa đơn chưa thanh toán · bấm để xem QR</span>
+        </a>
+    {% else %}
+        <div class="callout callout-ok">{{ icon("check") }}<div><strong>Bạn đã thanh toán đủ</strong><span>Cảm ơn bạn! Hóa đơn tháng sau sẽ hiện ở đây.</span></div></div>
+    {% endif %}
+
+    <section class="section" id="bills">
+        <div class="section-head"><h2>Hóa đơn các tháng</h2></div>
+        <div class="portal-bills card">
+            {% for bill in bills %}
+                <a class="portal-bill-row" href="{{ url_for('portal_bill', token=token, bill_id=bill.RoomMonthlyBillId) }}">
+                    <span class="portal-bill-month">
+                        <strong>Tháng {{ "%02d"|format(bill.MonthNumber) }}/{{ bill.YearNumber }}</strong>
+                        <small class="muted">{{ icon("bolt", 13) }} {{ bill.ElectricUsage|num }} kWh · {{ icon("drop", 13) }} {{ bill.WaterUsage|num }} m³</small>
+                    </span>
+                    <span class="portal-bill-amount">
+                        <strong>{{ bill.TotalAmount|money }}</strong>
+                        {% if bill.PaidAt %}<span class="pay-pill is-paid">{{ icon("check", 12) }} Đã trả</span>{% elif bill.TenantReportedPaidAt %}<span class="pay-pill is-reported">Chờ xác nhận</span>{% else %}<span class="pay-pill is-unpaid">Chưa trả</span>{% endif %}
+                    </span>
+                    {{ icon("chev-right", 16) }}
+                </a>
+            {% endfor %}
+        </div>
+    </section>
+{% endif %}
+
+<details class="card install-tip">
+    <summary class="disclosure-link">{{ icon("download", 14) }} Cài lên màn hình chính để xem nhanh</summary>
+    <div class="card-body small">
+        <p><strong>iPhone:</strong> mở link này bằng Safari → bấm nút Chia sẻ <span aria-hidden="true">⬆︎</span> → <em>Thêm vào MH chính</em>.</p>
+        <p><strong>Android:</strong> mở bằng Chrome → menu ⋮ → <em>Thêm vào màn hình chính</em> / <em>Cài đặt ứng dụng</em>.</p>
+    </div>
+</details>
+{% endblock %}

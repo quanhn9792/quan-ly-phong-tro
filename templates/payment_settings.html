@@ -34,6 +34,10 @@
                     <span class="field-label">Thông tin tài khoản (in dưới QR)</span>
                     <textarea name="account_info" rows="3" maxlength="500" placeholder="VD: Vietcombank - 123456789 - NGUYEN VAN A">{{ s.AccountInfo if s and s.AccountInfo else "" }}</textarea>
                 </label>
+                <label class="field">
+                    <span class="field-label">Số điện thoại / Zalo của chủ nhà (hiện nút Gọi, Nhắn Zalo trong app của khách)</span>
+                    <input name="owner_phone" type="tel" inputmode="tel" maxlength="30" value="{{ s.OwnerPhone if s and s.OwnerPhone else '' }}" placeholder="VD: 0912 345 678">
+                </label>
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">{{ icon("check") }} Lưu QR</button>
                 </div>

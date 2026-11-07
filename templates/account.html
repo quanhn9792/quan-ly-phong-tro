@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon with context %}
+
+{% block title %}Tài khoản{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">Cài đặt</p>
+        <h1>Tài khoản</h1>
+    </div>
+</header>
+
+<section class="card narrow">
+    <div class="card-body form-stack">
+        <h2>{{ icon("settings") }} Đổi mật khẩu — {{ g.user.Username }}</h2>
+        <form method="post" class="form-stack">
+            <label class="field">
+                <span class="field-label">Mật khẩu hiện tại</span>
+                <input type="password" name="current_password" autocomplete="current-password" required>
+            </label>
+            <label class="field">
+                <span class="field-label">Mật khẩu mới (ít nhất {{ min_length }} ký tự)</span>
+                <input type="password" name="new_password" autocomplete="new-password" minlength="{{ min_length }}" required>
+            </label>
+            <label class="field">
+                <span class="field-label">Nhập lại mật khẩu mới</span>
+                <input type="password" name="confirm_password" autocomplete="new-password" minlength="{{ min_length }}" required>
+            </label>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">{{ icon("check") }} Đổi mật khẩu</button>
+            </div>
+        </form>
+        <p class="muted small">Đổi mật khẩu sẽ đăng xuất mọi điện thoại / máy tính khác đang đăng nhập — dùng khi lỡ mất điện thoại.</p>
+    </div>
+</section>
+{% endblock %}

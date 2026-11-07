@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, month_nav, status_pill, unit_name, unit_sub with context %}
+{% from "_macros.html" import icon, month_nav, paid_toggle, pay_pill, status_pill, unit_name, unit_sub with context %}
 
 {% block title %}Tổng quan{% endblock %}
 
@@ -19,6 +19,12 @@
         <span class="stat-label">{{ icon("wallet") }} Tổng cần thu</span>
         <strong class="stat-value">{{ total|money }}</strong>
         <span class="stat-sub">{{ billed }} hóa đơn đã nhập</span>
+    </div>
+    <div class="stat">
+        <span class="stat-label">{{ icon("check") }} Đã thu tiền</span>
+        <strong class="stat-value">{{ paid_total|money }}</strong>
+        <div class="progress"><span style="width: {{ (paid_count / billed * 100) if billed else 0 }}%"></span></div>
+        <span class="stat-sub">{{ paid_count }}/{{ billed }} phòng · còn phải thu <b>{{ (total - paid_total)|money }}</b></span>
     </div>
     <div class="stat">
         <span class="stat-label">{{ icon("bolt") }} Tiến độ nhập hóa đơn</span>
@@ -50,6 +56,49 @@
         </div>
         <a class="btn btn-primary" href="{{ url_for('reports_page', year=year, month=month) }}">{{ icon("send") }} Gửi khách</a>
     </div>
+{% endif %}
+
+{% if reported %}
+    <section class="card overdue reported">
+        <div class="overdue-head">
+            <h2 title="Kiểm tra tài khoản ngân hàng rồi bấm xác nhận">{{ icon("wallet") }} Khách báo đã chuyển khoản</h2>
+            <strong>{{ reported|sum(attribute="TotalAmount")|money }}</strong>
+        </div>
+        <div class="overdue-list">
+            {% for bill in reported %}
+                <div class="overdue-row">
+                    <a href="{{ url_for('bill_detail_page', bill_id=bill.RoomMonthlyBillId) }}" class="overdue-info">
+                        <strong>{{ unit_name(bill) }} <small class="muted">· T{{ "%02d"|format(bill.MonthNumber) }}/{{ bill.YearNumber }}</small></strong>
+                        <span class="muted">{{ bill.TenantNames or "" }} · báo lúc {{ bill.TenantReportedPaidAt.strftime("%H:%M %d/%m") }}</span>
+                    </a>
+                    <strong class="overdue-amount">{{ bill.TotalAmount|money }}</strong>
+                    {{ paid_toggle(bill, "btn-sm") }}
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+{% endif %}
+
+{% if overdue %}
+    {% set overdue_total = overdue|sum(attribute="TotalAmount") %}
+    <section class="card overdue">
+        <div class="overdue-head">
+            <h2>{{ icon("alert") }} Còn nợ các tháng trước</h2>
+            <strong>{{ overdue_total|money }}</strong>
+        </div>
+        <div class="overdue-list">
+            {% for bill in overdue %}
+                <div class="overdue-row">
+                    <a href="{{ url_for('bill_detail_page', bill_id=bill.RoomMonthlyBillId) }}" class="overdue-info">
+                        <strong>{{ unit_name(bill) }} <small class="muted">· T{{ "%02d"|format(bill.MonthNumber) }}/{{ bill.YearNumber }}</small></strong>
+                        <span class="muted">{{ bill.TenantNames or "Chưa có khách" }}</span>
+                    </a>
+                    <strong class="overdue-amount">{{ bill.TotalAmount|money }}</strong>
+                    {{ paid_toggle(bill, "btn-sm") }}
+                </div>
+            {% endfor %}
+        </div>
+    </section>
 {% endif %}
 
 {% if not configured_month %}
@@ -84,7 +133,7 @@
                 <a class="room-tile is-done" href="{{ url_for('bill_detail_page', bill_id=bill.RoomMonthlyBillId) }}">
                     <div class="room-tile-head">
                         <span class="room-code">{{ unit_name(room) }}</span>
-                        <span class="tick">{{ icon("check", 14) }} Đã nhập</span>
+                        {{ pay_pill(bill) }}
                     </div>
                     {% if unit_sub(room) %}<span class="room-property">{{ unit_sub(room) }}</span>{% endif %}
                     <span class="room-tenant">{{ room.TenantNames or "Chưa có khách" }}</span>

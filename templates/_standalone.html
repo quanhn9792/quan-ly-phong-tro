@@ -1,0 +1,31 @@
+{% from "_macros.html" import icon with context %}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0f766e">
+    <meta name="color-scheme" content="light">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Cho thuê">
+    <title>{% block title %}{% endblock %} · Quản lý cho thuê</title>
+    {% block manifest %}<link rel="manifest" href="/manifest.webmanifest">{% endblock %}
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+    {% include "_ios_splash.html" %}
+    <link rel="icon" href="/static/icons/icon-192.png">
+    <link rel="stylesheet" href="/static/styles.css?v={{ asset_v() }}">
+</head>
+<body class="standalone">
+    {% block main %}
+    <main class="auth-wrap">
+        <div class="auth-brand">
+            <span class="brand-mark">{{ icon("home", 22) }}</span>
+            <strong>Cho thuê</strong>
+        </div>
+        {% block content %}{% endblock %}
+    </main>
+    {% endblock %}
+    {% block scripts %}{% endblock %}
+</body>
+</html>

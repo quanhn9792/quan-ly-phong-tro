@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, month_nav, unit_name, unit_sub, zalo_button with context %}
+{% from "_macros.html" import icon, month_nav, paid_toggle, unit_name, unit_sub, zalo_button with context %}
 
 {% block title %}Gửi Zalo tháng {{ "%02d"|format(month) }}/{{ year }}{% endblock %}
 
@@ -15,9 +15,13 @@
 
 <div class="callout callout-info">
     {{ icon("send") }}
-    <div>
+    <div class="only-desktop">
         <strong>Cách gửi: bấm “Gửi Zalo” → Zalo mở đúng khung chat của khách → bấm Ctrl+V rồi Enter</strong>
         <span>Ảnh hóa đơn được copy sẵn. Cần đăng nhập Zalo PC hoặc Zalo web trên máy này. Gửi xong phòng nào sẽ được đánh dấu.</span>
+    </div>
+    <div class="only-touch">
+        <strong>Cách gửi: bấm “Gửi Zalo” → chọn Zalo → chọn đúng khách (theo số Zalo hiện bên dưới) → Gửi</strong>
+        <span>Ảnh hóa đơn được đính kèm sẵn. Gửi xong phòng nào sẽ được đánh dấu "Đã gửi".</span>
     </div>
 </div>
 
@@ -33,7 +37,7 @@
             {% set link = bill|zalo_link %}
             <article class="card zalo-item {{ 'is-sent' if bill.RoomMonthlyBillId in sent_ids else '' }} {{ 'no-zalo' if not link else '' }}" data-zalo-item>
                 <a class="zalo-thumb" href="{{ url_for('bill_notice_image', bill_id=bill.RoomMonthlyBillId) }}" target="_blank" title="Xem ảnh">
-                    <img src="{{ url_for('bill_notice_image', bill_id=bill.RoomMonthlyBillId) }}" alt="Ảnh hóa đơn {{ bill|unit_title }}" loading="lazy">
+                    <img src="{{ url_for('bill_notice_thumb', bill_id=bill.RoomMonthlyBillId) }}" width="72" height="100" decoding="async" alt="Ảnh hóa đơn {{ bill|unit_title }}" loading="lazy">
                 </a>
                 <div class="zalo-info">
                     <div class="zalo-title">
@@ -53,6 +57,12 @@
                     {% else %}
                         <a class="btn btn-ghost" href="{{ url_for('tenants_page') }}">{{ icon("edit") }} Nhập số Zalo</a>
                     {% endif %}
+                    {% if bill.TenantPortalToken %}
+                        {% set app_link = portal_url(bill.TenantPortalToken) %}
+                        <button type="button" class="btn btn-ghost btn-sm" data-copy="{{ app_link }}" data-share-link="{{ app_link }}"
+                                data-share-title="Hóa đơn tiền nhà {{ unit_name(bill)|trim }}">{{ icon("phone", 14) }} Gửi link app</button>
+                    {% endif %}
+                    {{ paid_toggle(bill) }}
                 </div>
             </article>
         {% endfor %}
@@ -61,5 +71,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='zalo.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='zalo.js') }}?v={{ asset_v() }}"></script>
 {% endblock %}

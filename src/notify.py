@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import smtplib
 import ssl
+import threading
+from collections import OrderedDict
 from email.message import EmailMessage
 from email.utils import formataddr
 from io import BytesIO
@@ -31,14 +33,20 @@ def payment_memo(bill: Any) -> str:
     return f"PHONG {ascii_upper(str(bill.RoomCode))} {period}"
 
 
+def normalize_phone(raw: Any) -> str | None:
+    """'+84 912 345 678' -> '0912345678'; trả None nếu không giống số điện thoại."""
+    digits = "".join(ch for ch in str(raw or "") if ch.isdigit())
+    if digits.startswith("84") and len(digits) == 11:
+        digits = "0" + digits[2:]
+    return digits if len(digits) >= 9 else None
+
+
 def zalo_phone(bill: Any) -> str | None:
     """Số Zalo của khách trong tháng hóa đơn (ưu tiên ô Zalo, sau đó số điện thoại), dạng 0xxxxxxxxx."""
     for raw in (getattr(bill, "TenantZaloPhone", None), getattr(bill, "TenantPhone", None)):
-        digits = "".join(ch for ch in str(raw or "") if ch.isdigit())
-        if digits.startswith("84") and len(digits) == 11:
-            digits = "0" + digits[2:]
-        if len(digits) >= 9:
-            return digits
+        phone = normalize_phone(raw)
+        if phone:
+            return phone
     return None
 
 
@@ -93,7 +101,59 @@ def _text_width(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont)
     return box[2] - box[0]
 
 
+_IMAGE_CACHE: "OrderedDict[tuple, bytes]" = OrderedDict()
+_IMAGE_CACHE_SIZE = 64
+_IMAGE_CACHE_LOCK = threading.Lock()
+
+
+def _settings_key(settings: Any | None) -> tuple:
+    if settings is None:
+        return ()
+    qr = binary_value(settings.QrImage) if settings.QrImage else b""
+    return (settings.UpdatedAt, settings.AccountInfo, len(qr), hash(qr))
+
+
 def bill_notice_image_bytes(bill: Any, settings: Any | None) -> bytes:
+    """Ảnh thông báo hóa đơn, có cache: khóa là toàn bộ dữ liệu hóa đơn + cấu hình QR,
+    nên chỉ cần 1 con số / tên khách / QR thay đổi là ảnh được vẽ lại."""
+    key = (tuple(bill), _settings_key(settings))
+    with _IMAGE_CACHE_LOCK:
+        cached = _IMAGE_CACHE.get(key)
+        if cached is not None:
+            _IMAGE_CACHE.move_to_end(key)
+            return cached
+    data = _render_bill_notice_image(bill, settings)
+    with _IMAGE_CACHE_LOCK:
+        _IMAGE_CACHE[key] = data
+        while len(_IMAGE_CACHE) > _IMAGE_CACHE_SIZE:
+            _IMAGE_CACHE.popitem(last=False)
+    return data
+
+
+_THUMB_CACHE: "OrderedDict[tuple, bytes]" = OrderedDict()
+
+
+def bill_notice_thumb_bytes(bill: Any, settings: Any | None, width: int = 216) -> bytes:
+    """Ảnh thu nhỏ cho danh sách (nhẹ ~10 lần ảnh gốc)."""
+    key = (tuple(bill), _settings_key(settings), width)
+    with _IMAGE_CACHE_LOCK:
+        cached = _THUMB_CACHE.get(key)
+        if cached is not None:
+            _THUMB_CACHE.move_to_end(key)
+            return cached
+    image = Image.open(BytesIO(bill_notice_image_bytes(bill, settings)))
+    image.thumbnail((width, width * 2), Image.LANCZOS)
+    buffer = BytesIO()
+    image.convert("RGB").save(buffer, format="JPEG", quality=82, optimize=True)
+    data = buffer.getvalue()
+    with _IMAGE_CACHE_LOCK:
+        _THUMB_CACHE[key] = data
+        while len(_THUMB_CACHE) > _IMAGE_CACHE_SIZE * 2:
+            _THUMB_CACHE.popitem(last=False)
+    return data
+
+
+def _render_bill_notice_image(bill: Any, settings: Any | None) -> bytes:
     width, height = 1080, 1520
     image = Image.new("RGB", (width, height), "#f4f6f8")
     draw = ImageDraw.Draw(image)
