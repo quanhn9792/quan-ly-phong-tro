@@ -72,7 +72,13 @@
                         <span class="muted">{{ bill.TenantNames or "" }} · báo lúc {{ bill.TenantReportedPaidAt.strftime("%H:%M %d/%m") }}</span>
                     </a>
                     <strong class="overdue-amount">{{ bill.TotalAmount|money }}</strong>
-                    {{ paid_toggle(bill, "btn-sm") }}
+                    <div class="report-actions">
+                        {{ paid_toggle(bill, "btn-sm") }}
+                        <form method="post" action="{{ url_for('reject_tenant_report', bill_id=bill.RoomMonthlyBillId) }}"
+                              data-confirm="Chưa nhận được tiền của {{ bill.RoomCode }}? Khách sẽ phải báo lại.">
+                            <button type="submit" class="btn btn-ghost btn-sm">Chưa nhận được</button>
+                        </form>
+                    </div>
                 </div>
             {% endfor %}
         </div>

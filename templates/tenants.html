@@ -98,6 +98,7 @@
             <small class="muted">DV {{ tenant.ServiceFee|money }}</small>
         </div>
     </div>
+    {% if tenant.IsCurrent or tenant.PortalToken %}
     <div class="portal-link">
         {% if tenant.PortalToken %}
             {% set link = portal_url(tenant.PortalToken) %}
@@ -122,6 +123,7 @@
             </form>
         {% endif %}
     </div>
+    {% endif %}
     <details class="disclosure">
         <summary class="disclosure-link">{{ icon("edit", 14) }} Sửa thông tin</summary>
         <form method="post" action="{{ url_for('update_tenant', tenant_id=tenant.TenantId) }}" class="form-stack">

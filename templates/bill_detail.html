@@ -29,6 +29,10 @@
             <strong>Khách báo đã chuyển khoản lúc {{ bill.TenantReportedPaidAt.strftime("%H:%M %d/%m/%Y") }}</strong>
             <span>Kiểm tra tài khoản ngân hàng (nội dung {{ bill|payment_memo }}) rồi bấm nút thu tiền ở trên để xác nhận.</span>
         </div>
+        <form method="post" action="{{ url_for('reject_tenant_report', bill_id=bill.RoomMonthlyBillId) }}"
+              data-confirm="Chưa nhận được tiền? Khách sẽ thấy lại nút &quot;Tôi đã chuyển khoản&quot;.">
+            <button type="submit" class="btn btn-ghost">Chưa nhận được</button>
+        </form>
     </div>
 {% endif %}
 

@@ -274,14 +274,47 @@ def _sync_bills_for_period(
     to_year: int | None,
     to_month: int | None,
 ) -> int:
-    """Áp giá mới cho hóa đơn trong giai đoạn, trừ những tháng đã có giai đoạn bắt đầu muộn hơn phủ lên."""
+    """Áp giá mới cho hóa đơn trong giai đoạn, trừ những tháng đã có giai đoạn bắt đầu muộn hơn phủ lên.
+
+    - Tháng phòng không có khách: chỉ tính điện nước (giống quy tắc khi tạo hóa đơn).
+    - Hóa đơn đã thu / khách đã báo chuyển khoản mà tổng tiền đổi: chuyển về chưa thu để chủ nhà thu thêm / kiểm tra lại.
+    """
+    rent, service, laundry, electricity_price, water_price = prices
     cursor.execute(
         """
         UPDATE bills
-        SET RentAmount = ?, ServiceFee = ?, LaundryFee = ?, ElectricityUnitPrice = ?, WaterUnitPrice = ?,
+        SET RentAmount = nv.RentAmount, ServiceFee = nv.ServiceFee, LaundryFee = nv.LaundryFee,
+            ElectricityUnitPrice = ?, WaterUnitPrice = ?,
+            PaidAt = CASE WHEN tot.NewTotal <> tot.OldTotal THEN NULL ELSE bills.PaidAt END,
+            TenantReportedPaidAt = CASE WHEN tot.NewTotal <> tot.OldTotal THEN NULL ELSE bills.TenantReportedPaidAt END,
             UpdatedAt = SYSDATETIME()
         FROM dbo.RoomMonthlyBills AS bills
         INNER JOIN dbo.BillingMonths AS months ON months.BillingMonthId = bills.BillingMonthId
+        INNER JOIN dbo.Rooms AS rooms ON rooms.RoomId = bills.RoomId
+        CROSS APPLY
+        (
+            SELECT CASE WHEN rooms.RentalStatus = N'OCCUPIED' OR EXISTS
+            (
+                SELECT 1 FROM dbo.Tenants AS t
+                WHERE t.RoomId = bills.RoomId
+                  AND (t.MoveInDate IS NULL OR t.MoveInDate <= EOMONTH(DATEFROMPARTS(months.YearNumber, months.MonthNumber, 1)))
+                  AND (t.MoveOutDate IS NULL OR t.MoveOutDate >= DATEFROMPARTS(months.YearNumber, months.MonthNumber, 1))
+            ) THEN 1 ELSE 0 END AS HasTenant
+        ) AS occ
+        CROSS APPLY
+        (
+            SELECT
+                CASE WHEN occ.HasTenant = 1 THEN CAST(? AS DECIMAL(18,2)) ELSE 0 END AS RentAmount,
+                CASE WHEN occ.HasTenant = 1 THEN CAST(? AS DECIMAL(18,2)) ELSE 0 END AS ServiceFee,
+                CASE WHEN occ.HasTenant = 1 THEN CAST(? AS DECIMAL(18,2)) ELSE 0 END AS LaundryFee
+        ) AS nv
+        CROSS APPLY
+        (
+            SELECT
+                nv.RentAmount + nv.ServiceFee + nv.LaundryFee
+                    + bills.ElectricUsage * CAST(? AS DECIMAL(18,2)) + bills.WaterUsage * CAST(? AS DECIMAL(18,2)) AS NewTotal,
+                bills.RentAmount + bills.ServiceFee + bills.LaundryFee + bills.ElectricityAmount + bills.WaterAmount AS OldTotal
+        ) AS tot
         WHERE bills.RoomId = ?
           AND (months.YearNumber > ? OR (months.YearNumber = ? AND months.MonthNumber >= ?))
           AND (? IS NULL OR months.YearNumber < ? OR (months.YearNumber = ? AND months.MonthNumber <= ?))
@@ -299,7 +332,9 @@ def _sync_bills_for_period(
                      OR (later.EffectiveToYear = months.YearNumber AND later.EffectiveToMonth >= months.MonthNumber))
           );
         """,
-        *prices,
+        electricity_price, water_price,
+        rent, service, laundry,
+        electricity_price, water_price,
         room_id,
         from_year, from_year, from_month,
         to_year, to_year, to_year, to_month,
@@ -361,7 +396,9 @@ def end_tenancy(tenant_id: int) -> None:
     execute(
         """
         UPDATE dbo.Tenants
-        SET IsCurrent = 0, MoveOutDate = COALESCE(MoveOutDate, CAST(GETDATE() AS DATE)), UpdatedAt = SYSDATETIME()
+        SET IsCurrent = 0, MoveOutDate = COALESCE(MoveOutDate, CAST(GETDATE() AS DATE)),
+            PortalToken = NULL,  -- khách chuyển đi: thu hồi link app
+            UpdatedAt = SYSDATETIME()
         WHERE TenantId = ?;
         """,
         (tenant_id,),
@@ -699,7 +736,7 @@ def set_tenant_portal_token(tenant_id: int, token: str | None) -> None:
 def tenant_by_portal_token(token: str) -> Any | None:
     return one(
         """
-        SELECT t.TenantId, t.RoomId, t.FullName, t.MoveInDate, t.MoveOutDate, t.IsCurrent,
+        SELECT t.TenantId, t.RoomId, t.FullName, t.MoveInDate, t.MoveOutDate, t.IsCurrent, t.CreatedAt,
                r.RoomCode, r.RoomName, p.PropertyName, p.PropertyType, p.Address
         FROM dbo.Tenants AS t
         INNER JOIN dbo.Rooms AS r ON r.RoomId = t.RoomId
@@ -711,7 +748,8 @@ def tenant_by_portal_token(token: str) -> Any | None:
 
 
 def tenant_bills(tenant: Any) -> list[Any]:
-    """Hóa đơn của phòng trong các tháng khách này ở (theo ngày vào/ra), mới nhất trước."""
+    """Hóa đơn của phòng trong các tháng khách này ở (theo ngày vào/ra), mới nhất trước.
+    Chưa nhập ngày vào thì tính từ lúc tạo lượt thuê, để không lộ hóa đơn của những người thuê trước."""
     return rows(
         f"""
         SELECT {BILL_COLUMNS} FROM dbo.v_MonthlyRoomBills
@@ -720,7 +758,7 @@ def tenant_bills(tenant: Any) -> list[Any]:
           AND EOMONTH(DATEFROMPARTS(YearNumber, MonthNumber, 1)) >= COALESCE(?, CONVERT(date, '1900-01-01'))
         ORDER BY YearNumber DESC, MonthNumber DESC;
         """,
-        (tenant.RoomId, tenant.MoveOutDate, tenant.MoveInDate),
+        (tenant.RoomId, tenant.MoveOutDate, tenant.MoveInDate or tenant.CreatedAt.date()),
     )
 
 
@@ -772,3 +810,8 @@ def tenant_reported_count(property_id: int | None = None) -> int:
 
 def save_owner_phone(phone: str | None) -> None:
     execute("UPDATE dbo.PaymentSettings SET OwnerPhone = ?, UpdatedAt = SYSDATETIME() WHERE PaymentSettingsId = 1;", (phone,))
+
+
+def clear_tenant_report(bill_id: int) -> None:
+    """Chủ nhà chưa nhận được tiền: bỏ trạng thái "khách báo đã chuyển khoản" (khách có thể báo lại)."""
+    execute("UPDATE dbo.RoomMonthlyBills SET TenantReportedPaidAt = NULL WHERE RoomMonthlyBillId = ?;", (bill_id,))
