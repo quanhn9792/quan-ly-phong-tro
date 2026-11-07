@@ -63,7 +63,15 @@
     };
     window.appToast = flashToast;
     if (navigator.share) document.querySelectorAll("[data-share-link]").forEach((b) => { b.hidden = false; });
+    const isTouch = window.matchMedia("(pointer: coarse)").matches;
     document.addEventListener("click", async (event) => {
+        const both = event.target.closest("[data-copy][data-share-link]");
+        if (both && isTouch && navigator.share) {
+            try {
+                await navigator.share({ title: both.dataset.shareTitle, text: both.dataset.shareTitle, url: both.dataset.shareLink });
+            } catch { /* người dùng đóng bảng chia sẻ */ }
+            return;
+        }
         const copyBtn = event.target.closest("[data-copy]");
         if (copyBtn) {
             try {

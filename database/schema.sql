@@ -397,6 +397,7 @@ SELECT
     contact.Phone AS TenantPhone,
     contact.ZaloPhone AS TenantZaloPhone,
     contact.ZaloUserId AS TenantZaloUserId,
+    contact.PortalToken AS TenantPortalToken,
     b.RentAmount,
     b.ServiceFee,
     b.LaundryFee,
@@ -441,7 +442,7 @@ OUTER APPLY
 ) AS month_tenants
 OUTER APPLY
 (
-    SELECT TOP 1 t.Email, t.Phone, t.ZaloPhone, t.ZaloUserId
+    SELECT TOP 1 t.Email, t.Phone, t.ZaloPhone, t.ZaloUserId, t.PortalToken
     FROM dbo.Tenants AS t
     WHERE t.RoomId = b.RoomId
       AND (t.MoveInDate IS NULL OR t.MoveInDate <= period.MonthEnd)

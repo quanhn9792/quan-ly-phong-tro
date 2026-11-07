@@ -32,6 +32,7 @@ BILL_COLUMNS = """
     RoomMonthlyBillId, BillingMonthId, RoomId, YearNumber, MonthNumber,
     PropertyId, PropertyName, PropertyType,
     RoomCode, RoomName, RentalStatus, TenantNames, TenantEmail, TenantPhone, TenantZaloPhone, TenantZaloUserId,
+    TenantPortalToken,
     RentAmount, ServiceFee, LaundryFee,
     ElectricOld, ElectricNew, ElectricUsage, ElectricityUnitPrice, ElectricityAmount,
     WaterOld, WaterNew, WaterUsage, WaterUnitPrice, WaterAmount,

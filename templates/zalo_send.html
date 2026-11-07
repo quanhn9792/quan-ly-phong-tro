@@ -57,6 +57,11 @@
                     {% else %}
                         <a class="btn btn-ghost" href="{{ url_for('tenants_page') }}">{{ icon("edit") }} Nhập số Zalo</a>
                     {% endif %}
+                    {% if bill.TenantPortalToken %}
+                        {% set app_link = portal_url(bill.TenantPortalToken) %}
+                        <button type="button" class="btn btn-ghost btn-sm" data-copy="{{ app_link }}" data-share-link="{{ app_link }}"
+                                data-share-title="Hóa đơn tiền nhà {{ unit_name(bill)|trim }}">{{ icon("phone", 14) }} Gửi link app</button>
+                    {% endif %}
                     {{ paid_toggle(bill) }}
                 </div>
             </article>
