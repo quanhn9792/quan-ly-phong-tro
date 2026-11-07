@@ -729,6 +729,7 @@ input::placeholder, textarea::placeholder { color: #a3aeaa; }
     .room-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .callout > .btn { width: 100%; }
     .page-header .toolbar, .page-header .toolbar .btn { width: 100%; }
+    .page-header .toolbar > form, .page-header .toolbar > .paid-toggle, .page-header .toolbar > .paid-toggle form { width: 100%; }
     .portal-link-row { grid-template-columns: 1fr; gap: 4px; }
 }
 
