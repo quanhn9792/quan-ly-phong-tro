@@ -155,6 +155,13 @@ body.standalone { display: block; }
     font-size: 13.5px; font-weight: 600; text-align: center; grid-column: 1 / -1;
 }
 
+/* Nội dung theo loại thiết bị: chuột (máy tính) / cảm ứng (điện thoại) */
+html body .only-touch { display: none; }
+@media (pointer: coarse) {
+    html body .only-touch { display: grid; }
+    html body .only-desktop { display: none; }
+}
+
 /* Chỉ hiện trên điện thoại */
 .appbar, .tabbar, .menu-backdrop { display: none; }
 
