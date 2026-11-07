@@ -63,6 +63,7 @@
                         <input type="hidden" name="month" value="{{ month }}">
                         <button type="submit" class="btn btn-ghost">{{ icon("download") }} Tải ảnh (zip)</button>
                     </form>
+                    <a class="btn btn-ghost" href="{{ url_for('export_month_csv', year=year, month=month) }}">{{ icon("download") }} Xuất Excel</a>
                     <form method="post" action="{{ url_for('send_month_email') }}"
                           data-confirm="Gửi email thông báo thanh toán tháng {{ '%02d'|format(month) }}/{{ year }} cho tất cả khách có email?">
                         <input type="hidden" name="year" value="{{ year }}">

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import csv
 import gzip
 import os
 import secrets
 from datetime import date
 from decimal import Decimal
-from io import BytesIO
+from io import BytesIO, StringIO
 from typing import Any
 from zipfile import ZIP_DEFLATED, ZipFile
 
@@ -788,6 +789,31 @@ def create_app() -> Flask:
         bill = bill_or_404(bill_id)
         q.log_bill_delivery(bill_id, "ZALO", zalo_phone(bill), "SENT")
         return "", 204
+
+    @app.get("/reports/export.csv")
+    def export_month_csv():
+        """Báo cáo tháng ra CSV (mở bằng Excel): mỗi hóa đơn 1 dòng, kèm trạng thái thu tiền."""
+        year, month = year_month_from_args()
+        bills = q.month_bills(year, month, selected_property_id())
+        buffer = StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(["Nhà", "Phòng/căn", "Khách thuê", "Điện thoại", "Tiền thuê", "Phí dịch vụ", "Máy giặt",
+                         "Điện cũ", "Điện mới", "Số điện (kWh)", "Tiền điện", "Nước cũ", "Nước mới", "Số nước (m3)",
+                         "Tiền nước", "Tổng", "Trạng thái", "Ngày thu", "Ghi chú"])
+
+        def safe(value: Any) -> Any:
+            # Chặn công thức Excel (CSV injection) trong dữ liệu chữ do người dùng nhập
+            return "'" + value if isinstance(value, str) and value[:1] in ("=", "+", "-", "@") else value
+
+        for b in bills:
+            status = "Đã thu" if b.PaidAt else ("Khách báo đã CK" if b.TenantReportedPaidAt else "Chưa thu")
+            writer.writerow([safe(b.PropertyName), safe(b.RoomCode), safe(b.TenantNames or ""), safe(b.TenantPhone or ""),
+                             b.RentAmount, b.ServiceFee, b.LaundryFee, b.ElectricOld, b.ElectricNew, b.ElectricUsage,
+                             b.ElectricityAmount, b.WaterOld, b.WaterNew, b.WaterUsage, b.WaterAmount, b.TotalAmount,
+                             status, b.PaidAt.strftime("%d/%m/%Y") if b.PaidAt else "", safe(b.Note or "")])
+        data = buffer.getvalue().encode("utf-8-sig")  # BOM để Excel đọc đúng tiếng Việt
+        return send_file(BytesIO(data), mimetype="text/csv", as_attachment=True,
+                         download_name=f"bao-cao-{year}-{month:02d}.csv", max_age=0)
 
     @app.post("/reports/export-month-images")
     def export_month_images():

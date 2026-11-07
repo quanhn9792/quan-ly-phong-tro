@@ -170,3 +170,11 @@ def test_portal_for_tenant_without_dates(owner, app):
     # khách đã chuyển đi trước tháng 11: không thấy hóa đơn tháng 11
     q.save_tenant(tenant.TenantId, {"MoveInDate": "2025-01-01", "MoveOutDate": "2025-12-31", "IsCurrent": 0})
     assert q.tenant_bills(q.tenant_by_portal_token(token)) == []
+
+
+def test_export_csv(owner):
+    response = owner.get("/reports/export.csv?year=2026&month=11")
+    assert response.status_code == 200 and response.mimetype == "text/csv"
+    text = response.data.decode("utf-8-sig")
+    assert text.splitlines()[0].startswith("Nhà,Phòng/căn")
+    assert len(text.strip().splitlines()) == 1 + len(q.month_bills(2026, 11))
