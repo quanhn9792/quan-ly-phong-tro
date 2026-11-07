@@ -574,6 +574,16 @@ def create_app() -> Flask:
         flash("Đã chuyển khách thuê sang trạng thái đã ngưng thuê.", "success")
         return redirect(url_for("tenants_page"))
 
+    @app.post("/tenants/portal-links")
+    def create_all_portal_links():
+        created = 0
+        for tenant in q.tenant_list(selected_property_id()):
+            if tenant.IsCurrent and not tenant.PortalToken:
+                q.set_tenant_portal_token(int(tenant.TenantId), new_token())
+                created += 1
+        flash(f"Đã tạo link app cho {created} khách đang thuê." if created else "Tất cả khách đang thuê đều đã có link.", "success")
+        return redirect(url_for("tenants_page"))
+
     @app.post("/tenants/<int:tenant_id>/portal-link")
     def tenant_portal_link(tenant_id: int):
         if q.one("SELECT 1 AS Found FROM dbo.Tenants WHERE TenantId = ?;", (tenant_id,)) is None:

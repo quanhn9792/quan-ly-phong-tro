@@ -188,3 +188,8 @@ def test_asset_version_matches_service_worker(owner, app):
     sw = app.test_client().get("/sw.js").get_data(as_text=True)
     assert f'const VERSION = "{version}"' in sw and "__ASSET_VERSION__" not in sw
     assert f"app.js?v={version}" in page
+
+
+def test_create_all_portal_links(owner):
+    owner.post("/tenants/portal-links", data={"csrf_token": owner.csrf})
+    assert all(t.PortalToken for t in q.tenant_list() if t.IsCurrent)

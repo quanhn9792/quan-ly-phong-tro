@@ -159,7 +159,15 @@
 </details>
 
 <section class="section">
-    <div class="section-head"><h2>Đang thuê <span class="count">{{ current_tenants|length }}</span></h2></div>
+    {% set without_link = current_tenants|rejectattr("PortalToken")|list %}
+    <div class="section-head">
+        <h2>Đang thuê <span class="count">{{ current_tenants|length }}</span></h2>
+        {% if without_link %}
+            <form method="post" action="{{ url_for('create_all_portal_links') }}">
+                <button type="submit" class="btn btn-ghost btn-sm">{{ icon("phone", 14) }} Tạo link app cho {{ without_link|length }} khách</button>
+            </form>
+        {% endif %}
+    </div>
     {% if current_tenants %}
         <div class="stack">{% for tenant in current_tenants %}{{ tenant_card(tenant) }}{% endfor %}</div>
     {% else %}
