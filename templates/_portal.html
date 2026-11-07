@@ -1,0 +1,19 @@
+{% extends "_standalone.html" %}
+{% from "_macros.html" import icon with context %}
+{% block manifest %}<link rel="manifest" href="{{ url_for('portal_manifest', token=token) }}">{% endblock %}
+{% block main %}
+{% set unit = tenant.PropertyName if tenant.PropertyType in ("WHOLE_HOUSE", "APARTMENT") else tenant.RoomCode %}
+<header class="portal-bar">
+    <a class="brand" href="{{ url_for('portal_home', token=token) }}">
+        <span class="brand-mark">{{ icon("home", 18) }}</span>
+        <span class="brand-text">
+            <strong>{{ unit }}</strong>
+            <small>{{ tenant.PropertyName if unit != tenant.PropertyName else (tenant.Address or "Tiền nhà hằng tháng") }}</small>
+        </span>
+    </a>
+</header>
+<main class="portal">
+    {% block content %}{% endblock %}
+    <p class="portal-foot muted small">Link này dành riêng cho {{ tenant.FullName }}. Vui lòng không chia sẻ cho người khác.</p>
+</main>
+{% endblock %}

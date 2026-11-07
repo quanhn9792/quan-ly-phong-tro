@@ -35,7 +35,7 @@ BILL_COLUMNS = """
     RentAmount, ServiceFee, LaundryFee,
     ElectricOld, ElectricNew, ElectricUsage, ElectricityUnitPrice, ElectricityAmount,
     WaterOld, WaterNew, WaterUsage, WaterUnitPrice, WaterAmount,
-    TotalAmount, Note, PaymentQrContent, CreatedAt, UpdatedAt
+    TotalAmount, Note, PaymentQrContent, PaidAt, CreatedAt, UpdatedAt
 """
 
 PERIOD_COLUMNS = """
@@ -326,7 +326,7 @@ def tenant_list(property_id: int | None = None) -> list[Any]:
         f"""
         SELECT t.TenantId, t.RoomId, r.RoomCode, r.RoomName, p.PropertyName, p.PropertyType,
                t.FullName, t.Phone, t.Email, t.ZaloPhone, t.ZaloUserId, t.CitizenId, t.PermanentAddress,
-               t.MoveInDate, t.MoveOutDate, t.RentAmount, t.ServiceFee, t.IsCurrent, t.Note
+               t.MoveInDate, t.MoveOutDate, t.RentAmount, t.ServiceFee, t.IsCurrent, t.Note, t.PortalToken
         FROM dbo.Tenants AS t
         INNER JOIN dbo.Rooms AS r ON r.RoomId = t.RoomId
         INNER JOIN dbo.Properties AS p ON p.PropertyId = r.PropertyId
@@ -672,4 +672,52 @@ def save_qr_settings(account_info: str | None, qr: tuple[bytes, str, str] | None
         WHERE PaymentSettingsId = 1;
         """,
         (pyodbc.Binary(data), mime_type, file_name, account_info),
+    )
+
+
+# ----- Thu tiền -----
+
+def set_bill_paid(bill_id: int, paid: bool) -> None:
+    execute(
+        "UPDATE dbo.RoomMonthlyBills SET PaidAt = CASE WHEN ? = 1 THEN COALESCE(PaidAt, SYSDATETIME()) END WHERE RoomMonthlyBillId = ?;",
+        (1 if paid else 0, bill_id),
+    )
+
+
+# ----- Cổng khách thuê -----
+
+def tenant_portal_token(tenant_id: int) -> str | None:
+    row = one("SELECT PortalToken FROM dbo.Tenants WHERE TenantId = ?;", (tenant_id,))
+    return row.PortalToken if row else None
+
+
+def set_tenant_portal_token(tenant_id: int, token: str | None) -> None:
+    execute("UPDATE dbo.Tenants SET PortalToken = ?, UpdatedAt = SYSDATETIME() WHERE TenantId = ?;", (token, tenant_id))
+
+
+def tenant_by_portal_token(token: str) -> Any | None:
+    return one(
+        """
+        SELECT t.TenantId, t.RoomId, t.FullName, t.MoveInDate, t.MoveOutDate, t.IsCurrent,
+               r.RoomCode, r.RoomName, p.PropertyName, p.PropertyType, p.Address
+        FROM dbo.Tenants AS t
+        INNER JOIN dbo.Rooms AS r ON r.RoomId = t.RoomId
+        INNER JOIN dbo.Properties AS p ON p.PropertyId = r.PropertyId
+        WHERE t.PortalToken = ?;
+        """,
+        (token,),
+    )
+
+
+def tenant_bills(tenant: Any) -> list[Any]:
+    """Hóa đơn của phòng trong các tháng khách này ở (theo ngày vào/ra), mới nhất trước."""
+    return rows(
+        f"""
+        SELECT {BILL_COLUMNS} FROM dbo.v_MonthlyRoomBills
+        WHERE RoomId = ?
+          AND DATEFROMPARTS(YearNumber, MonthNumber, 1) <= COALESCE(?, CONVERT(date, '9999-12-31'))
+          AND EOMONTH(DATEFROMPARTS(YearNumber, MonthNumber, 1)) >= COALESCE(?, CONVERT(date, '1900-01-01'))
+        ORDER BY YearNumber DESC, MonthNumber DESC;
+        """,
+        (tenant.RoomId, tenant.MoveOutDate, tenant.MoveInDate),
     )

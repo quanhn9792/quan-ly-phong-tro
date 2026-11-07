@@ -79,7 +79,7 @@
 {%- endmacro %}
 
 {% macro tenant_card(tenant) -%}
-<article class="card tenant-card {{ 'is-past' if not tenant.IsCurrent else '' }}">
+<article class="card tenant-card {{ 'is-past' if not tenant.IsCurrent else '' }}" id="tenant-{{ tenant.TenantId }}">
     <div class="tenant-row">
         <div class="avatar">{{ tenant.FullName[:1]|upper }}</div>
         <div class="tenant-main">
@@ -97,6 +97,30 @@
             <strong>{{ tenant.RentAmount|money }}</strong>
             <small class="muted">DV {{ tenant.ServiceFee|money }}</small>
         </div>
+    </div>
+    <div class="portal-link">
+        {% if tenant.PortalToken %}
+            {% set link = portal_url(tenant.PortalToken) %}
+            <div class="portal-link-row">
+                <span class="portal-link-label">{{ icon("phone", 14) }} App của khách</span>
+                <input class="portal-link-url" value="{{ link }}" readonly aria-label="Link của khách" onfocus="this.select()">
+            </div>
+            <div class="portal-link-actions">
+                <button type="button" class="btn btn-ghost btn-sm" data-copy="{{ link }}">{{ icon("check", 14) }} Copy link</button>
+                <button type="button" class="btn btn-ghost btn-sm" data-share-link="{{ link }}" data-share-title="Hóa đơn tiền nhà {{ unit_name(tenant)|trim }}" hidden>{{ icon("send", 14) }} Chia sẻ</button>
+                <a class="btn btn-ghost btn-sm" href="{{ link }}" target="_blank" rel="noopener">Xem thử</a>
+                <form method="post" action="{{ url_for('tenant_portal_link', tenant_id=tenant.TenantId) }}" data-confirm="Thu hồi link? Khách sẽ không mở được link cũ nữa.">
+                    <input type="hidden" name="action" value="revoke">
+                    <button type="submit" class="btn btn-danger-ghost btn-sm">Thu hồi</button>
+                </form>
+            </div>
+            {% if is_local_host() %}<p class="warn-text small">{{ icon("alert", 13) }} Link đang dùng địa chỉ máy này — khách không mở được. Đặt biến PUBLIC_URL là địa chỉ tunnel (xem README).</p>{% endif %}
+        {% else %}
+            <form method="post" action="{{ url_for('tenant_portal_link', tenant_id=tenant.TenantId) }}">
+                <input type="hidden" name="action" value="create">
+                <button type="submit" class="disclosure-link link-button">{{ icon("phone", 14) }} Tạo link app cho khách (xem hóa đơn, QR)</button>
+            </form>
+        {% endif %}
     </div>
     <details class="disclosure">
         <summary class="disclosure-link">{{ icon("edit", 14) }} Sửa thông tin</summary>

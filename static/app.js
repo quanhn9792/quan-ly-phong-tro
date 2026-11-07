@@ -46,6 +46,67 @@
         if (event.key === "Escape") setMenu(false);
     });
 
+    // ----- Copy / chia sẻ link (link app của khách) -----
+    const flashToast = (text) => {
+        let box = document.getElementById("app-toast");
+        if (!box) {
+            box = document.createElement("div");
+            box.id = "app-toast";
+            box.className = "toast";
+            box.setAttribute("role", "status");
+            document.body.appendChild(box);
+        }
+        box.textContent = text;
+        box.classList.add("show");
+        clearTimeout(box._timer);
+        box._timer = setTimeout(() => box.classList.remove("show"), 3500);
+    };
+    window.appToast = flashToast;
+    if (navigator.share) document.querySelectorAll("[data-share-link]").forEach((b) => { b.hidden = false; });
+    document.addEventListener("click", async (event) => {
+        const copyBtn = event.target.closest("[data-copy]");
+        if (copyBtn) {
+            try {
+                await navigator.clipboard.writeText(copyBtn.dataset.copy);
+                flashToast("Đã copy link. Dán vào Zalo để gửi cho khách.");
+            } catch {
+                const input = copyBtn.closest(".portal-link")?.querySelector("input");
+                if (input) { input.focus(); input.select(); }
+                flashToast("Hãy giữ vào ô link để copy.");
+            }
+            return;
+        }
+        const shareBtn = event.target.closest("[data-share-link]");
+        if (shareBtn) {
+            try {
+                await navigator.share({ title: shareBtn.dataset.shareTitle, text: shareBtn.dataset.shareTitle, url: shareBtn.dataset.shareLink });
+            } catch { /* người dùng đóng bảng chia sẻ */ }
+        }
+    });
+
+    // ----- Đánh dấu đã thu / chưa thu không cần tải lại trang -----
+    document.addEventListener("submit", async (event) => {
+        const form = event.target.closest("form[data-paid-toggle]");
+        if (!form || !window.fetch) return;
+        event.preventDefault();
+        const button = form.querySelector("button");
+        button.disabled = true;
+        try {
+            const response = await fetch(form.action, { method: "POST", body: new FormData(form), headers: { "X-Requested-With": "fetch" } });
+            if (!response.ok) throw new Error(String(response.status));
+            const { paid } = await response.json();
+            const scope = form.closest("[data-paid-scope]") || form;
+            scope.classList.toggle("is-paid", paid);
+            scope.querySelectorAll("form[data-paid-toggle] input[name=paid]").forEach((i) => { i.value = paid ? "0" : "1"; });
+            flashToast(paid ? "Đã đánh dấu đã thu tiền." : "Đã chuyển về chưa thu.");
+            document.dispatchEvent(new CustomEvent("paid-changed", { detail: { paid } }));
+        } catch {
+            form.submit();
+        } finally {
+            button.disabled = false;
+        }
+    });
+
     // ----- Số tiền: hiện số đã định dạng dưới ô nhập (vd: 5000000 -> 5.000.000 VND) -----
     const parse = (raw) => {
         let v = (raw || "").replace(/\s/g, "");

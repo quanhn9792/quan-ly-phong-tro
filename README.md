@@ -20,6 +20,8 @@ Mỗi tháng nhập chỉ số điện/nước, hệ thống tự tính tiền t
 | Phòng & căn | Thêm phòng, đổi tên/chuyển nhà, giá theo giai đoạn (tự tính lại hóa đơn trong giai đoạn) |
 | Khách thuê | Lượt thuê theo ngày vào/ra, giá thỏa thuận riêng |
 | Cài đặt | Đơn giá dự phòng theo tháng, QR ngân hàng, SMTP gửi email |
+| Thu tiền | Đánh dấu Đã thu / Chưa thu ngay trên Tổng quan, Báo cáo, Gửi Zalo, chi tiết hóa đơn; tổng đã thu / còn phải thu |
+| App của khách | Mỗi khách 1 link riêng (không cần mật khẩu): xem hóa đơn các tháng, QR thanh toán, lưu ảnh; cài lên màn hình chính như app |
 
 Khi có từ 2 nhà trở lên, ô **"Đang xem"** ở thanh bên cho phép lọc mọi màn hình theo một nhà.
 
@@ -52,6 +54,7 @@ python web.py          # mở http://127.0.0.1:5000
 | `MSSQL_DRIVER` | tự chọn | Tên ODBC driver |
 | `HOST` / `PORT` | `127.0.0.1` / `5000` | Giữ `127.0.0.1` khi dùng tunnel |
 | `TRUST_PROXY` | (trống) | Đặt `1` khi chạy sau Tailscale Funnel / Cloudflare Tunnel |
+| `PUBLIC_URL` | (trống) | Địa chỉ tunnel, vd `https://may-nha.tail1234.ts.net` — dùng để tạo link gửi khách |
 | `FLASK_SECRET_KEY` | tự sinh, lưu ở `instance/secret_key` | |
 
 ### Tự chạy khi đăng nhập Windows
@@ -71,6 +74,12 @@ python web.py          # mở http://127.0.0.1:5000
    - **iPhone (Safari)**: nút Chia sẻ → *Thêm vào MH chính*.
    - **Android (Chrome)**: menu ⋮ → *Cài đặt ứng dụng* / *Thêm vào màn hình chính*.
 
+### App cho khách thuê
+
+Ở trang **Khách thuê**, bấm *Tạo link app cho khách* → *Copy link* (hoặc *Chia sẻ* trên điện thoại) → gửi qua Zalo. Khách mở link sẽ thấy số tiền cần trả, QR thanh toán và lịch sử hóa đơn các tháng mình ở; bấm "Thêm vào màn hình chính" để có app riêng. Link là mã ngẫu nhiên 256 bit, chỉ xem được hóa đơn của đúng phòng trong thời gian khách đó thuê. Bấm *Thu hồi* để vô hiệu hóa link ngay (vd khi khách chuyển đi hoặc lỡ gửi nhầm).
+
+Cần đặt `PUBLIC_URL` là địa chỉ tunnel để link gửi khách không bị là `127.0.0.1`.
+
 Trên điện thoại, nút **Gửi Zalo** mở bảng Chia sẻ của hệ điều hành kèm ảnh hóa đơn → chọn Zalo → chọn khách (số Zalo của khách hiện ngay sau khi chia sẻ để chọn đúng người).
 
 Bảo mật: đăng nhập bắt buộc cho mọi trang, mật khẩu được băm, chặn 15 phút sau 5 lần nhập sai, mọi thao tác ghi đều có CSRF token, trang dữ liệu không được trình duyệt lưu cache. Hãy đặt mật khẩu mạnh và cài Windows Update / bản vá thường xuyên cho máy chủ.
@@ -87,6 +96,7 @@ src/notify.py         ảnh thông báo, QR, gửi email
 src/formatting.py     đọc/định dạng số tiền, ngày
 src/web.py            các route Flask
 src/auth.py           đăng nhập, phiên, CSRF, chặn dò mật khẩu
+src/portal.py         app của khách thuê (/k/<mã>)
 static/sw.js, manifest.webmanifest, icons/   PWA
 templates/, static/   giao diện
 ```
@@ -100,7 +110,8 @@ templates/, static/   giao diện
 - `BillingMonths` – tháng tính tiền + đơn giá dự phòng.
 - `RoomMonthlyBills` – hóa đơn phòng/tháng, các cột tiền điện/nước được tính sẵn.
 - `PaymentSettings`, `BillDeliveryLogs` – cấu hình QR/SMTP và lịch sử gửi.
-- `AppUsers` – tài khoản đăng nhập (hiện có vai trò `OWNER`; `TENANT` dành cho cổng khách thuê sắp tới).
+- `AppUsers` – tài khoản đăng nhập của chủ nhà.
+- `Tenants.PortalToken` – mã link app của khách; `RoomMonthlyBills.PaidAt` – thời điểm đánh dấu đã thu tiền.
 - View `v_MonthlyRoomBills` – hóa đơn kèm **khách thuê của đúng tháng đó** (theo ngày vào/ra), không phải khách hiện tại.
 
 **Quy tắc tính giá** (ưu tiên từ trên xuống): giai đoạn đơn giá đặt tay của phòng → giá thỏa thuận của lượt thuê trong tháng → giá mặc định của phòng. Phòng không có khách trong tháng chỉ tính điện nước.

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, zalo_button with context %}
+{% from "_macros.html" import icon, invoice, paid_toggle, zalo_button with context %}
 
 {% block title %}{{ bill|unit_title }} · {{ "%02d"|format(bill.MonthNumber) }}/{{ bill.YearNumber }}{% endblock %}
 
@@ -12,6 +12,7 @@
         <h1>{{ bill|unit_title }} · Tháng {{ "%02d"|format(bill.MonthNumber) }}/{{ bill.YearNumber }}</h1>
     </div>
     <div class="toolbar">
+        {{ paid_toggle(bill) }}
         <a class="btn btn-ghost" href="{{ url_for('bill_form', year=bill.YearNumber, month=bill.MonthNumber, room_id=bill.RoomId) }}">{{ icon("edit") }} Sửa chỉ số</a>
         <a class="btn btn-ghost" href="{{ url_for('bill_notice_image', bill_id=bill.RoomMonthlyBillId) }}" target="_blank">{{ icon("image") }} Xem ảnh</a>
         <form method="post" action="{{ url_for('send_bill_email_page', bill_id=bill.RoomMonthlyBillId) }}">
@@ -32,48 +33,7 @@
     </div>
 {% endif %}
 
-<section class="invoice">
-    <div class="invoice-head">
-        <div>
-            <span>Thanh toán tiền thuê{% if bill.PropertyType not in ("WHOLE_HOUSE", "APARTMENT") %} · {{ bill.PropertyName }}{% endif %}</span>
-            <strong>{{ bill|unit_title }}</strong>
-        </div>
-        <div class="invoice-month">{{ "%02d"|format(bill.MonthNumber) }}/{{ bill.YearNumber }}</div>
-    </div>
-    <div class="invoice-body">
-        <div class="invoice-lines">
-            <div class="invoice-tenant">
-                <span>Khách thuê</span>
-                <strong>{{ bill.TenantNames or "Chưa nhập" }}</strong>
-                {% if bill.TenantPhone or bill.TenantEmail %}
-                    <small>{{ bill.TenantPhone or "" }}{{ " · " if bill.TenantPhone and bill.TenantEmail }}{{ bill.TenantEmail or "" }}</small>
-                {% endif %}
-            </div>
-            <div class="receipt-line"><span>Tiền thuê</span><strong>{{ bill.RentAmount|money }}</strong></div>
-            <div class="receipt-line"><span>Phí dịch vụ</span><strong>{{ bill.ServiceFee|money }}</strong></div>
-            <div class="receipt-line"><span>Máy giặt chung</span><strong>{{ bill.LaundryFee|money }}</strong></div>
-            <div class="receipt-line">
-                <span>Điện {{ bill.ElectricUsage|num }} kWh <em>{{ bill.ElectricOld|num }} → {{ bill.ElectricNew|num }} × {{ bill.ElectricityUnitPrice|money }}</em></span>
-                <strong>{{ bill.ElectricityAmount|money }}</strong>
-            </div>
-            <div class="receipt-line">
-                <span>Nước {{ bill.WaterUsage|num }} m³ <em>{{ bill.WaterOld|num }} → {{ bill.WaterNew|num }} × {{ bill.WaterUnitPrice|money }}</em></span>
-                <strong>{{ bill.WaterAmount|money }}</strong>
-            </div>
-            {% if bill.Note %}
-                <div class="receipt-line"><span>Ghi chú <em>{{ bill.Note }}</em></span></div>
-            {% endif %}
-            <div class="receipt-total"><span>Tổng thanh toán</span><strong>{{ bill.TotalAmount|money }}</strong></div>
-        </div>
-        <div class="invoice-qr">
-            <img src="{{ url_for('bill_payment_qr', bill_id=bill.RoomMonthlyBillId) }}" alt="QR thanh toán {{ bill|unit_title }}">
-            {% if payment_settings and payment_settings.AccountInfo %}
-                <span>{{ payment_settings.AccountInfo }}</span>
-            {% endif %}
-            <strong>ND: {{ bill|payment_memo }}</strong>
-        </div>
-    </div>
-</section>
+{{ invoice(bill, url_for('bill_payment_qr', bill_id=bill.RoomMonthlyBillId), payment_settings) }}
 {% endblock %}
 
 {% block scripts %}

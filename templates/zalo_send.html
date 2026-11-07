@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, month_nav, unit_name, unit_sub, zalo_button with context %}
+{% from "_macros.html" import icon, month_nav, paid_toggle, unit_name, unit_sub, zalo_button with context %}
 
 {% block title %}Gửi Zalo tháng {{ "%02d"|format(month) }}/{{ year }}{% endblock %}
 
@@ -53,6 +53,7 @@
                     {% else %}
                         <a class="btn btn-ghost" href="{{ url_for('tenants_page') }}">{{ icon("edit") }} Nhập số Zalo</a>
                     {% endif %}
+                    {{ paid_toggle(bill) }}
                 </div>
             </article>
         {% endfor %}

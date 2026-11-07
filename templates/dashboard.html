@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import icon, month_nav, status_pill, unit_name, unit_sub with context %}
+{% from "_macros.html" import icon, month_nav, pay_pill, status_pill, unit_name, unit_sub with context %}
 
 {% block title %}Tổng quan{% endblock %}
 
@@ -19,6 +19,12 @@
         <span class="stat-label">{{ icon("wallet") }} Tổng cần thu</span>
         <strong class="stat-value">{{ total|money }}</strong>
         <span class="stat-sub">{{ billed }} hóa đơn đã nhập</span>
+    </div>
+    <div class="stat">
+        <span class="stat-label">{{ icon("check") }} Đã thu tiền</span>
+        <strong class="stat-value">{{ paid_total|money }}</strong>
+        <div class="progress"><span style="width: {{ (paid_count / billed * 100) if billed else 0 }}%"></span></div>
+        <span class="stat-sub">{{ paid_count }}/{{ billed }} phòng · còn phải thu <b>{{ (total - paid_total)|money }}</b></span>
     </div>
     <div class="stat">
         <span class="stat-label">{{ icon("bolt") }} Tiến độ nhập hóa đơn</span>
@@ -84,7 +90,7 @@
                 <a class="room-tile is-done" href="{{ url_for('bill_detail_page', bill_id=bill.RoomMonthlyBillId) }}">
                     <div class="room-tile-head">
                         <span class="room-code">{{ unit_name(room) }}</span>
-                        <span class="tick">{{ icon("check", 14) }} Đã nhập</span>
+                        {{ pay_pill(bill) }}
                     </div>
                     {% if unit_sub(room) %}<span class="room-property">{{ unit_sub(room) }}</span>{% endif %}
                     <span class="room-tenant">{{ room.TenantNames or "Chưa có khách" }}</span>

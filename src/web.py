@@ -14,6 +14,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from . import queries as q
 from .auth import register_auth
+from .portal import new_token, register_portal
 from .db import PROJECT_ROOT, init_database
 from .formatting import format_date, format_money, format_number, money_input, parse_decimal
 from .notify import (
@@ -142,15 +143,29 @@ def secret_key() -> str:
     return key_file.read_text(encoding="utf-8").strip()
 
 
+def portal_url(token: str) -> str:
+    """Link gửi khách. Ưu tiên PUBLIC_URL (địa chỉ tunnel) vì chủ nhà có thể đang mở web bằng 127.0.0.1."""
+    path = url_for("portal_home", token=token)
+    public = os.getenv("PUBLIC_URL", "").strip().rstrip("/")
+    return public + path if public else request.host_url.rstrip("/") + path
+
+
+def is_local_host() -> bool:
+    host = request.host.split(":")[0]
+    return not os.getenv("PUBLIC_URL") and host in {"127.0.0.1", "localhost", "::1", "[::1]"}
+
+
 def create_app() -> Flask:
     app = Flask(__name__, template_folder=str(PROJECT_ROOT / "templates"), static_folder=str(PROJECT_ROOT / "static"))
     app.config["SECRET_KEY"] = secret_key()
     app.config["MAX_CONTENT_LENGTH"] = 6 * 1024 * 1024
+    app.config["TEMPLATES_AUTO_RELOAD"] = os.getenv("TEMPLATES_AUTO_RELOAD") == "1"  # tiện khi sửa giao diện
     if os.getenv("TRUST_PROXY") == "1":
         # Chạy sau Tailscale Funnel / Cloudflare Tunnel: lấy đúng IP + https của người dùng
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)  # type: ignore[method-assign]
         app.config["SESSION_COOKIE_SECURE"] = True
     register_auth(app)
+    register_portal(app)
 
     app.jinja_env.filters.update(
         money=format_money,
@@ -165,7 +180,7 @@ def create_app() -> Flask:
         image_filename=bill_image_filename,
         zalo_phone=zalo_phone,
     )
-    app.jinja_env.globals.update(shift_month=q.shift_month, today=date.today)
+    app.jinja_env.globals.update(shift_month=q.shift_month, today=date.today, portal_url=portal_url, is_local_host=is_local_host)
 
     @app.context_processor
     def inject_properties():
@@ -232,6 +247,8 @@ def create_app() -> Flask:
             bills=bills,
             bills_by_room={bill.RoomId: bill for bill in bills},
             total=sum((Decimal(bill.TotalAmount) for bill in bills), Decimal("0")),
+            paid_total=sum((Decimal(bill.TotalAmount) for bill in bills if bill.PaidAt), Decimal("0")),
+            paid_count=sum(1 for bill in bills if bill.PaidAt),
             configured_month=q.get_month(year, month),
         )
 
@@ -464,6 +481,18 @@ def create_app() -> Flask:
         flash("Đã chuyển khách thuê sang trạng thái đã ngưng thuê.", "success")
         return redirect(url_for("tenants_page"))
 
+    @app.post("/tenants/<int:tenant_id>/portal-link")
+    def tenant_portal_link(tenant_id: int):
+        if q.one("SELECT 1 AS Found FROM dbo.Tenants WHERE TenantId = ?;", (tenant_id,)) is None:
+            abort(404)
+        if request.form.get("action") == "revoke":
+            q.set_tenant_portal_token(tenant_id, None)
+            flash("Đã thu hồi link của khách. Link cũ không còn mở được.", "success")
+        else:
+            q.set_tenant_portal_token(tenant_id, new_token())
+            flash("Đã tạo link mới cho khách. Bấm \"Copy link\" rồi gửi qua Zalo.", "success")
+        return redirect(url_for("tenants_page") + f"#tenant-{tenant_id}")
+
     # ----- Đơn giá tháng -----
 
     @app.route("/months", methods=["GET", "POST"])
@@ -573,6 +602,7 @@ def create_app() -> Flask:
             year_total=sum((Decimal(item.TotalAmount) for item in month_summaries), Decimal("0")),
             bills=bills,
             total=sum((Decimal(bill.TotalAmount) for bill in bills), Decimal("0")),
+            paid_total=sum((Decimal(bill.TotalAmount) for bill in bills if bill.PaidAt), Decimal("0")),
         )
 
     def bill_or_404(bill_id: int) -> Any:
@@ -666,6 +696,16 @@ def create_app() -> Flask:
             )
         }
         return render_template("zalo_send.html", year=year, month=month, bills=bills, sent_ids=sent_ids)
+
+    @app.post("/reports/bills/<int:bill_id>/paid")
+    def set_bill_paid(bill_id: int):
+        bill = bill_or_404(bill_id)
+        paid = request.form.get("paid") == "1"
+        q.set_bill_paid(bill_id, paid)
+        if request.headers.get("X-Requested-With") == "fetch":
+            return {"paid": paid}
+        flash(f"{bill.RoomCode} tháng {bill.MonthNumber:02d}/{bill.YearNumber}: {'đã thu tiền' if paid else 'chuyển về chưa thu'}.", "success")
+        return back("bill_detail_page", bill_id=bill_id)
 
     @app.post("/reports/bills/<int:bill_id>/zalo-sent")
     def log_zalo_sent(bill_id: int):

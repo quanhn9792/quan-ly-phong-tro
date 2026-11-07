@@ -301,7 +301,27 @@ BEGIN
 END;
 GO
 
-/* ===== Tài khoản đăng nhập (chủ nhà; khách thuê ở giai đoạn sau) ===== */
+/* Cổng khách thuê: mỗi lượt thuê có 1 link bí mật /k/<PortalToken> */
+IF COL_LENGTH(N'dbo.Tenants', N'PortalToken') IS NULL
+BEGIN
+    ALTER TABLE dbo.Tenants ADD PortalToken NVARCHAR(64) NULL;
+END;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'UX_Tenants_PortalToken' AND object_id = OBJECT_ID(N'dbo.Tenants'))
+BEGIN
+    CREATE UNIQUE INDEX UX_Tenants_PortalToken ON dbo.Tenants (PortalToken) WHERE PortalToken IS NOT NULL;
+END;
+GO
+
+/* Theo dõi đã thu tiền */
+IF COL_LENGTH(N'dbo.RoomMonthlyBills', N'PaidAt') IS NULL
+BEGIN
+    ALTER TABLE dbo.RoomMonthlyBills ADD PaidAt DATETIME2(0) NULL;
+END;
+GO
+
+/* ===== Tài khoản đăng nhập (chủ nhà) ===== */
 IF OBJECT_ID(N'dbo.AppUsers', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.AppUsers
@@ -379,6 +399,7 @@ SELECT
     (b.RentAmount + b.ServiceFee + b.LaundryFee + b.ElectricityAmount + b.WaterAmount) AS TotalAmount,
     b.Note,
     b.PaymentQrContent,
+    b.PaidAt,
     b.CreatedAt,
     b.UpdatedAt
 FROM dbo.RoomMonthlyBills AS b

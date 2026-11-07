@@ -85,3 +85,71 @@
     <small class="field-hint" data-money-hint>{{ hint }}</small>
 </label>
 {%- endmacro %}
+
+{# Hóa đơn chi tiết (trang chủ nhà + cổng khách thuê) #}
+{% macro invoice(bill, qr_src, payment_settings) -%}
+<section class="invoice">
+    <div class="invoice-head">
+        <div>
+            <span>Thanh toán tiền thuê{% if bill.PropertyType not in ("WHOLE_HOUSE", "APARTMENT") %} · {{ bill.PropertyName }}{% endif %}</span>
+            <strong>{{ bill|unit_title }}</strong>
+        </div>
+        <div class="invoice-month">
+            {{ "%02d"|format(bill.MonthNumber) }}/{{ bill.YearNumber }}
+            {% if bill.PaidAt %}<span class="paid-chip">{{ icon("check", 14) }} Đã thanh toán</span>{% endif %}
+        </div>
+    </div>
+    <div class="invoice-body {{ 'no-qr' if bill.PaidAt else '' }}">
+        <div class="invoice-lines">
+            <div class="invoice-tenant">
+                <span>Khách thuê</span>
+                <strong>{{ bill.TenantNames or "Chưa nhập" }}</strong>
+                {% if bill.TenantPhone or bill.TenantEmail %}
+                    <small>{{ bill.TenantPhone or "" }}{{ " · " if bill.TenantPhone and bill.TenantEmail }}{{ bill.TenantEmail or "" }}</small>
+                {% endif %}
+            </div>
+            <div class="receipt-line"><span>Tiền thuê</span><strong>{{ bill.RentAmount|money }}</strong></div>
+            <div class="receipt-line"><span>Phí dịch vụ</span><strong>{{ bill.ServiceFee|money }}</strong></div>
+            <div class="receipt-line"><span>Máy giặt chung</span><strong>{{ bill.LaundryFee|money }}</strong></div>
+            <div class="receipt-line">
+                <span>Điện {{ bill.ElectricUsage|num }} kWh <em>{{ bill.ElectricOld|num }} → {{ bill.ElectricNew|num }} × {{ bill.ElectricityUnitPrice|money }}</em></span>
+                <strong>{{ bill.ElectricityAmount|money }}</strong>
+            </div>
+            <div class="receipt-line">
+                <span>Nước {{ bill.WaterUsage|num }} m³ <em>{{ bill.WaterOld|num }} → {{ bill.WaterNew|num }} × {{ bill.WaterUnitPrice|money }}</em></span>
+                <strong>{{ bill.WaterAmount|money }}</strong>
+            </div>
+            {% if bill.Note %}
+                <div class="receipt-line"><span>Ghi chú <em>{{ bill.Note }}</em></span></div>
+            {% endif %}
+            <div class="receipt-total"><span>Tổng thanh toán</span><strong>{{ bill.TotalAmount|money }}</strong></div>
+        </div>
+        {% if not bill.PaidAt %}
+        <div class="invoice-qr">
+            <img src="{{ qr_src }}" alt="QR thanh toán {{ bill|unit_title }}">
+            {% if payment_settings and payment_settings.AccountInfo %}
+                <span>{{ payment_settings.AccountInfo }}</span>
+            {% endif %}
+            <strong>ND: {{ bill|payment_memo }}</strong>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{%- endmacro %}
+
+{# Nút đánh dấu đã thu / chưa thu (app.js đổi trạng thái tại chỗ, không tải lại trang) #}
+{% macro paid_toggle(bill, size="") -%}
+<div class="paid-toggle {{ 'is-paid' if bill.PaidAt else '' }}" data-paid-scope onclick="event.stopPropagation()">
+    <form method="post" action="{{ url_for('set_bill_paid', bill_id=bill.RoomMonthlyBillId) }}" data-paid-toggle>
+        <input type="hidden" name="paid" value="{{ '0' if bill.PaidAt else '1' }}">
+        <button type="submit" class="btn {{ size }} paid-btn" title="Bấm để đổi trạng thái thu tiền">
+            <span class="when-paid">{{ icon("check", 15) }} Đã thu</span>
+            <span class="when-unpaid">{{ icon("wallet", 15) }} Chưa thu</span>
+        </button>
+    </form>
+</div>
+{%- endmacro %}
+
+{% macro pay_pill(bill) -%}
+{% if bill.PaidAt %}<span class="pay-pill is-paid">{{ icon("check", 12) }} Đã thu</span>{% else %}<span class="pay-pill is-unpaid">Chưa thu</span>{% endif %}
+{%- endmacro %}
