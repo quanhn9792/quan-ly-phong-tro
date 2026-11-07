@@ -156,3 +156,17 @@ def test_db_error_details_hidden_from_guests(app, monkeypatch):
     response = app.test_client().get("/k/" + "a" * 43)
     assert response.status_code == 503
     assert "SECRET-SERVER-NAME" not in response.get_data(as_text=True)
+
+
+def test_portal_for_tenant_without_dates(owner, app):
+    room = q.room_list()[0]
+    q.save_tenant(None, {"RoomId": room.RoomId, "FullName": "Khách không ngày", "IsCurrent": 1})
+    tenant = next(t for t in q.tenant_list() if t.FullName == "Khách không ngày")
+    owner.post(f"/tenants/{tenant.TenantId}/portal-link", data={"action": "create", "csrf_token": owner.csrf})
+    token = q.tenant_portal_token(tenant.TenantId)
+    bills = q.tenant_bills(q.tenant_by_portal_token(token))
+    assert bills, "khách không có ngày vào/ra phải thấy mọi hóa đơn của phòng"
+    assert app.test_client().get(f"/k/{token}").status_code == 200
+    # khách đã chuyển đi trước tháng 11: không thấy hóa đơn tháng 11
+    q.save_tenant(tenant.TenantId, {"MoveInDate": "2025-01-01", "MoveOutDate": "2025-12-31", "IsCurrent": 0})
+    assert q.tenant_bills(q.tenant_by_portal_token(token)) == []
