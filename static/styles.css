@@ -681,6 +681,9 @@ input::placeholder, textarea::placeholder { color: #a3aeaa; }
     .appbar .brand-text { min-width: 0; }
     .appbar .brand-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .appbar-refresh { display: none; }
+    .appbar-switch { flex-shrink: 1; min-width: 0; max-width: 46%; }
+    .appbar-switch select { width: 100%; min-height: 38px; padding: 0 28px 0 10px; font-size: 16px; font-weight: 600; text-overflow: ellipsis; }
+    .appbar:has(.appbar-switch) .brand-text small { display: none; }
     .appbar .brand-mark { width: 32px; height: 32px; border-radius: 9px; }
 
     /* Menu đầy đủ: trượt ra từ bên phải khi bấm "Thêm" */

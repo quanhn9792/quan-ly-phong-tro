@@ -20,7 +20,7 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from . import queries as q
-from .auth import register_auth
+from .auth import register_auth, safe_next
 from .portal import new_token, register_portal
 from .db import PROJECT_ROOT, init_database
 from .formatting import format_date, format_money, format_number, money_input, parse_decimal
@@ -193,7 +193,9 @@ def compress_response(response):
         return response
     response.direct_passthrough = False
     data = response.get_data()
+    response.close()  # đóng file gốc (send_file) trước khi thay bằng bản nén, tránh rò file handle
     if len(data) < 1024:
+        response.set_data(data)
         return response
     response.set_data(gzip.compress(data, compresslevel=6))
     response.headers["Content-Encoding"] = "gzip"
@@ -327,8 +329,8 @@ def create_app() -> Flask:
             session["property_id"] = int(value)
         else:
             session.pop("property_id", None)
-        target = request.form.get("next", "")
-        return redirect(target) if target.startswith("/") and not target.startswith("//") else back()
+        target = safe_next(request.form.get("next"))  # chặn cả "//evil" và "/\evil"
+        return redirect(target) if target else back()
 
     @app.get("/")
     def dashboard():

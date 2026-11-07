@@ -53,7 +53,8 @@ def test_login_next_is_not_open_redirect(app):
 def test_public_pwa_files(app):
     client = app.test_client()
     for path in ["/manifest.webmanifest", "/sw.js", "/offline", "/static/icons/icon-192.png"]:
-        assert client.get(path).status_code == 200, path
+        with client.get(path) as response:
+            assert response.status_code == 200, path
     assert client.get("/.well-known/assetlinks.json").status_code == 404  # chưa cấu hình
 
 
@@ -226,3 +227,14 @@ def test_owner_phone_shown_in_portal(owner, app):
     owner.post(f"/tenants/{tenant.TenantId}/portal-link", data={"action": "create", "csrf_token": owner.csrf})
     html = app.test_client().get(f"/k/{q.tenant_portal_token(tenant.TenantId)}").get_data(as_text=True)
     assert 'href="tel:0912345678"' in html and "zalo.me/0912345678" in html
+
+
+def test_property_switcher_and_no_open_redirect(owner):
+    if len(q.property_list()) < 2:
+        q.save_property(None, "Nhà thứ hai", "APARTMENT", None, None)
+    assert 'class="appbar-switch"' in owner.get("/").get_data(as_text=True)
+    for evil in ("//evil.example", "/\evil.example", "https://evil.example"):
+        response = owner.post("/select-property", data={"property_id": "", "next": evil, "csrf_token": owner.csrf})
+        assert "evil.example" not in response.headers["Location"], evil
+    response = owner.post("/select-property", data={"property_id": "", "next": "/rooms", "csrf_token": owner.csrf})
+    assert response.headers["Location"].endswith("/rooms")
