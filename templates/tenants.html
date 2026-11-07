@@ -114,7 +114,7 @@
                     <button type="submit" class="btn btn-danger-ghost btn-sm">Thu hồi</button>
                 </form>
             </div>
-            {% if is_local_host() %}<p class="warn-text small">{{ icon("alert", 13) }} Link đang dùng địa chỉ máy này — khách không mở được. Đặt biến PUBLIC_URL là địa chỉ tunnel (xem README).</p>{% endif %}
+            {% if is_local_host() %}<p class="warn-text small">{{ icon("alert", 13) }} <span>Link đang dùng địa chỉ máy này — khách không mở được. Xem <a class="link" href="{{ url_for('install_page') }}">Cài lên điện thoại</a> để bật địa chỉ Internet.</span></p>{% endif %}
         {% else %}
             <form method="post" action="{{ url_for('tenant_portal_link', tenant_id=tenant.TenantId) }}">
                 <input type="hidden" name="action" value="create">
