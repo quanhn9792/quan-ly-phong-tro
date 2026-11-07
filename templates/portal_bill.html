@@ -20,6 +20,26 @@
     <p class="muted small portal-hint">Mở app ngân hàng → Quét QR ở trên, hoặc chuyển khoản với đúng nội dung <strong>{{ bill|payment_memo }}</strong>. Chủ nhà sẽ xác nhận khi nhận được tiền.</p>
 {% endif %}
 <div class="portal-actions">
-    <a class="btn btn-ghost btn-block" href="{{ url_for('portal_notice', token=token, bill_id=bill.RoomMonthlyBillId) }}" download>{{ icon("image") }} Lưu ảnh hóa đơn</a>
+    <a class="btn btn-ghost btn-block" href="{{ url_for('portal_notice', token=token, bill_id=bill.RoomMonthlyBillId) }}" download="{{ bill|image_filename }}" data-save-image>{{ icon("image") }} Lưu ảnh hóa đơn</a>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Điện thoại: mở bảng Chia sẻ (có "Lưu hình ảnh" / gửi Zalo) thay vì tải file — iOS chạy dạng app không tải file được
+    (() => {
+        const link = document.querySelector("[data-save-image]");
+        if (!link || !navigator.canShare || !window.matchMedia("(pointer: coarse)").matches) return;
+        let file = null;
+        fetch(link.href).then((r) => r.ok ? r.blob() : null).then((blob) => {
+            if (blob) file = new File([blob], link.getAttribute("download") || "hoa-don.png", { type: "image/png" });
+        }).catch(() => {});
+        link.addEventListener("click", async (event) => {
+            if (!file || !navigator.canShare({ files: [file] })) return; // chưa tải xong: để trình duyệt mở ảnh
+            event.preventDefault();
+            try { await navigator.share({ files: [file] }); } catch { /* đóng bảng chia sẻ */ }
+        });
+    })();
+</script>
 {% endblock %}
