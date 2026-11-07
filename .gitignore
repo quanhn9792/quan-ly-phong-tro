@@ -19,3 +19,6 @@ instance/
 .idea/
 Thumbs.db
 .DS_Store
+
+# Test
+.pytest_cache/

@@ -634,7 +634,10 @@ input::placeholder, textarea::placeholder { color: #a3aeaa; }
         padding: calc(8px + env(safe-area-inset-top)) 16px 8px;
         background: var(--surface); border-bottom: 1px solid var(--line);
     }
-    .appbar .brand { padding: 0; }
+    .appbar .brand { padding: 0; min-width: 0; flex: 1; }
+    .appbar .brand-text { min-width: 0; }
+    .appbar .brand-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .appbar-refresh { display: none; }
     .appbar .brand-mark { width: 32px; height: 32px; border-radius: 9px; }
 
     /* Menu đầy đủ: trượt ra từ bên phải khi bấm "Thêm" */
@@ -722,4 +725,9 @@ input::placeholder, textarea::placeholder { color: #a3aeaa; }
     .table-cards tbody td:nth-child(8) { grid-column: 2; margin-top: 6px; text-align: right; }
     .table-cards tfoot tr { grid-template-columns: minmax(0, 1fr) auto; border-bottom: 0; }
     .table-cards tfoot td:nth-child(3) { grid-column: 1 / -1; }
+}
+
+/* Mở dạng app (đã cài lên màn hình chính): iOS không có kéo-để-tải-lại nên hiện nút tải lại */
+@media (display-mode: standalone) and (max-width: 860px) {
+    .appbar-refresh { display: grid; }
 }

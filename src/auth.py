@@ -24,7 +24,7 @@ CSRF_FIELD = "csrf_token"
 CSRF_HEADER = "X-CSRF-Token"
 UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 # Các trang mở được khi chưa đăng nhập
-PUBLIC_ENDPOINTS = {"login", "static", "service_worker", "manifest", "offline_page"}
+PUBLIC_ENDPOINTS = {"login", "static", "service_worker", "manifest", "offline_page", "assetlinks"}
 
 # Chặn dò mật khẩu: tối đa 5 lần sai / 15 phút cho mỗi IP và mỗi tên đăng nhập
 MAX_FAILURES = 5
@@ -140,7 +140,7 @@ def register_auth(app: Flask) -> None:
     @app.before_request
     def require_login():
         g.user = None
-        if request.endpoint in ("static", "service_worker", "manifest"):
+        if request.endpoint in ("static", "service_worker", "manifest", "assetlinks"):
             return None  # file tĩnh: không cần tra DB
         user_id = session.get("user_id")
         if user_id:

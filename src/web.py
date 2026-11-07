@@ -248,6 +248,18 @@ def create_app() -> Flask:
     def manifest():
         return send_from_directory(app.static_folder, "manifest.webmanifest", mimetype="application/manifest+json", max_age=3600)
 
+    @app.get("/.well-known/assetlinks.json")
+    def assetlinks():
+        # Cho app Android đóng gói bằng PWABuilder / Bubblewrap (Trusted Web Activity) mở toàn màn hình
+        package = os.getenv("ANDROID_PACKAGE", "").strip()
+        fingerprints = [f.strip() for f in os.getenv("ANDROID_CERT_SHA256", "").split(",") if f.strip()]
+        if not package or not fingerprints:
+            abort(404)
+        return [{
+            "relation": ["delegate_permission/common.handle_all_urls"],
+            "target": {"namespace": "android_app", "package_name": package, "sha256_cert_fingerprints": fingerprints},
+        }]
+
     @app.get("/offline")
     def offline_page():
         return render_template("offline.html")

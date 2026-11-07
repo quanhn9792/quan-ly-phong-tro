@@ -55,6 +55,7 @@ python web.py          # mở http://127.0.0.1:5000
 | `MSSQL_DRIVER` | tự chọn | Tên ODBC driver |
 | `HOST` / `PORT` | `127.0.0.1` / `5000` | Giữ `127.0.0.1` khi dùng tunnel |
 | `TRUST_PROXY` | (trống) | Đặt `1` khi chạy sau Tailscale Funnel / Cloudflare Tunnel |
+| `ANDROID_PACKAGE` / `ANDROID_CERT_SHA256` | (trống) | Chỉ khi đóng gói app Android bằng PWABuilder (xem dưới) |
 | `PUBLIC_URL` | (trống) | Địa chỉ tunnel, vd `https://may-nha.tail1234.ts.net` — dùng để tạo link gửi khách |
 | `FLASK_SECRET_KEY` | tự sinh, lưu ở `instance/secret_key` | |
 
@@ -74,6 +75,15 @@ python web.py          # mở http://127.0.0.1:5000
 4. Trên điện thoại mở địa chỉ tunnel, đăng nhập:
    - **iPhone (Safari)**: nút Chia sẻ → *Thêm vào MH chính*.
    - **Android (Chrome)**: menu ⋮ → *Cài đặt ứng dụng* / *Thêm vào màn hình chính*.
+
+### Đóng gói lên Google Play / App Store (tùy chọn)
+
+Cài PWA từ trình duyệt (bước 4 ở trên) là đủ dùng. Nếu muốn có file cài đặt / đưa lên store:
+
+- **Android (APK/AAB):** vào [pwabuilder.com](https://www.pwabuilder.com), nhập địa chỉ tunnel → *Package for stores* → *Android*. Tải về sẽ có file `.apk` (cài thử trực tiếp) và `.aab` (đưa lên Google Play), kèm `assetlinks.json`. Lấy `package_name` và `sha256_cert_fingerprints` trong đó, đặt vào biến môi trường `ANDROID_PACKAGE` và `ANDROID_CERT_SHA256` rồi khởi động lại web — app Android sẽ mở toàn màn hình, không còn thanh địa chỉ.
+- **iOS:** PWABuilder cũng xuất được project Xcode, nhưng build và đưa lên App Store cần máy Mac + tài khoản Apple Developer (99 USD/năm). Không có Mac thì dùng "Thêm vào MH chính" trong Safari — trải nghiệm gần như app thật.
+
+Lưu ý: app đóng gói vẫn chỉ là "vỏ" mở địa chỉ tunnel, nên địa chỉ tunnel phải cố định (Tailscale Funnel / tên miền Cloudflare).
 
 ### App cho khách thuê
 
@@ -116,6 +126,15 @@ templates/, static/   giao diện
 - View `v_MonthlyRoomBills` – hóa đơn kèm **khách thuê của đúng tháng đó** (theo ngày vào/ra), không phải khách hiện tại.
 
 **Quy tắc tính giá** (ưu tiên từ trên xuống): giai đoạn đơn giá đặt tay của phòng → giá thỏa thuận của lượt thuê trong tháng → giá mặc định của phòng. Phòng không có khách trong tháng chỉ tính điện nước.
+
+## Kiểm thử
+
+```powershell
+pip install -r requirements-dev.txt
+pytest
+```
+
+Test chạy trên database riêng `QuanLyPhongTro_PyTest` (tạo mới mỗi lần), không đụng dữ liệu thật.
 
 ## Xem database bằng giao diện
 
