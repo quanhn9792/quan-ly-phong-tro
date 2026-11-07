@@ -140,6 +140,8 @@ def register_auth(app: Flask) -> None:
     @app.before_request
     def require_login():
         g.user = None
+        if request.endpoint in ("static", "service_worker", "manifest"):
+            return None  # file tĩnh: không cần tra DB
         user_id = session.get("user_id")
         if user_id:
             user = get_user(int(user_id))
@@ -193,6 +195,27 @@ def register_auth(app: Flask) -> None:
                 record_failure(keys)
                 flash("Sai tên đăng nhập hoặc mật khẩu.", "error")
         return render_template("login.html", next_url=next_url, no_user=no_user)
+
+    @app.route("/account", methods=["GET", "POST"])
+    def account_page():
+        if request.method == "POST":
+            current = request.form.get("current_password", "")
+            new = request.form.get("new_password", "")
+            if not check_password_hash(g.user.PasswordHash, current):
+                flash("Mật khẩu hiện tại không đúng.", "error")
+            elif new != request.form.get("confirm_password", ""):
+                flash("Hai lần nhập mật khẩu mới không khớp.", "error")
+            else:
+                try:
+                    set_owner_password(g.user.Username, new)
+                except ValueError as exc:
+                    flash(str(exc), "error")
+                else:
+                    # Giữ đăng nhập trên thiết bị này, các thiết bị khác bị đăng xuất
+                    session["pwv"] = password_version(get_user(int(g.user.UserId)))
+                    flash("Đã đổi mật khẩu. Các thiết bị khác đã bị đăng xuất.", "success")
+                    return redirect(url_for("account_page"))
+        return render_template("account.html", min_length=MIN_PASSWORD_LENGTH)
 
     @app.post("/logout")
     def logout():

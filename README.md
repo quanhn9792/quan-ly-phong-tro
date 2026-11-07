@@ -20,7 +20,8 @@ Mỗi tháng nhập chỉ số điện/nước, hệ thống tự tính tiền t
 | Phòng & căn | Thêm phòng, đổi tên/chuyển nhà, giá theo giai đoạn (tự tính lại hóa đơn trong giai đoạn) |
 | Khách thuê | Lượt thuê theo ngày vào/ra, giá thỏa thuận riêng |
 | Cài đặt | Đơn giá dự phòng theo tháng, QR ngân hàng, SMTP gửi email |
-| Thu tiền | Đánh dấu Đã thu / Chưa thu ngay trên Tổng quan, Báo cáo, Gửi Zalo, chi tiết hóa đơn; tổng đã thu / còn phải thu |
+| Thu tiền | Đánh dấu Đã thu / Chưa thu ngay trên Tổng quan, Báo cáo, Gửi Zalo, chi tiết hóa đơn; tổng đã thu / còn phải thu; danh sách **còn nợ các tháng trước** |
+| Tài khoản | Đổi mật khẩu ngay trên app (đăng xuất các thiết bị khác) |
 | App của khách | Mỗi khách 1 link riêng (không cần mật khẩu): xem hóa đơn các tháng, QR thanh toán, lưu ảnh; cài lên màn hình chính như app |
 
 Khi có từ 2 nhà trở lên, ô **"Đang xem"** ở thanh bên cho phép lọc mọi màn hình theo một nhà.
@@ -111,7 +112,7 @@ templates/, static/   giao diện
 - `RoomMonthlyBills` – hóa đơn phòng/tháng, các cột tiền điện/nước được tính sẵn.
 - `PaymentSettings`, `BillDeliveryLogs` – cấu hình QR/SMTP và lịch sử gửi.
 - `AppUsers` – tài khoản đăng nhập của chủ nhà.
-- `Tenants.PortalToken` – mã link app của khách; `RoomMonthlyBills.PaidAt` – thời điểm đánh dấu đã thu tiền.
+- `Tenants.PortalToken` – mã link app của khách; `RoomMonthlyBills.PaidAt` – thời điểm đánh dấu đã thu tiền. Khi nâng cấp DB cũ, hóa đơn các tháng trước tháng hiện tại được coi là đã thu (trước đây chưa theo dõi).
 - View `v_MonthlyRoomBills` – hóa đơn kèm **khách thuê của đúng tháng đó** (theo ngày vào/ra), không phải khách hiện tại.
 
 **Quy tắc tính giá** (ưu tiên từ trên xuống): giai đoạn đơn giá đặt tay của phòng → giá thỏa thuận của lượt thuê trong tháng → giá mặc định của phòng. Phòng không có khách trong tháng chỉ tính điện nước.

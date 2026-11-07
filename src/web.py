@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import os
 import secrets
 from datetime import date
@@ -20,6 +21,7 @@ from .formatting import format_date, format_money, format_number, money_input, p
 from .notify import (
     bill_image_filename,
     bill_notice_image_bytes,
+    bill_notice_thumb_bytes,
     bill_payment_qr_bytes,
     binary_value,
     email_settings_ready,
@@ -155,10 +157,38 @@ def is_local_host() -> bool:
     return not os.getenv("PUBLIC_URL") and host in {"127.0.0.1", "localhost", "::1", "[::1]"}
 
 
+COMPRESSIBLE_TYPES = {"text/html", "text/css", "text/plain", "application/javascript", "text/javascript",
+                      "application/json", "application/manifest+json", "image/svg+xml"}
+
+
+def compress_response(response):
+    """Nén gzip HTML/CSS/JS: nhỏ đi ~5 lần, đáng kể khi dùng 4G qua tunnel."""
+    if (
+        response.status_code != 200
+        or response.mimetype not in COMPRESSIBLE_TYPES
+        or "Content-Encoding" in response.headers
+        or "gzip" not in request.headers.get("Accept-Encoding", "").lower()
+    ):
+        return response
+    response.direct_passthrough = False
+    data = response.get_data()
+    if len(data) < 1024:
+        return response
+    response.set_data(gzip.compress(data, compresslevel=6))
+    response.headers["Content-Encoding"] = "gzip"
+    response.headers.add("Vary", "Accept-Encoding")
+    if response.headers.get("ETag"):
+        etag, weak = response.get_etag()
+        if etag:
+            response.set_etag(etag, weak=True)
+    return response
+
+
 def create_app() -> Flask:
     app = Flask(__name__, template_folder=str(PROJECT_ROOT / "templates"), static_folder=str(PROJECT_ROOT / "static"))
     app.config["SECRET_KEY"] = secret_key()
     app.config["MAX_CONTENT_LENGTH"] = 6 * 1024 * 1024
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 86400  # file tĩnh: cache 1 ngày (đổi ?v= để cập nhật ngay)
     app.config["TEMPLATES_AUTO_RELOAD"] = os.getenv("TEMPLATES_AUTO_RELOAD") == "1"  # tiện khi sửa giao diện
     if os.getenv("TRUST_PROXY") == "1":
         # Chạy sau Tailscale Funnel / Cloudflare Tunnel: lấy đúng IP + https của người dùng
@@ -166,6 +196,7 @@ def create_app() -> Flask:
         app.config["SESSION_COOKIE_SECURE"] = True
     register_auth(app)
     register_portal(app)
+    app.after_request(compress_response)
 
     app.jinja_env.filters.update(
         money=format_money,
@@ -249,6 +280,7 @@ def create_app() -> Flask:
             total=sum((Decimal(bill.TotalAmount) for bill in bills), Decimal("0")),
             paid_total=sum((Decimal(bill.TotalAmount) for bill in bills if bill.PaidAt), Decimal("0")),
             paid_count=sum(1 for bill in bills if bill.PaidAt),
+            overdue=q.unpaid_bills_before(year, month, property_id),
             configured_month=q.get_month(year, month),
         )
 
@@ -625,6 +657,11 @@ def create_app() -> Flask:
     def bill_payment_qr(bill_id: int):
         data = bill_payment_qr_bytes(bill_or_404(bill_id), q.payment_settings())
         return send_file(BytesIO(data), mimetype="image/png", max_age=0)
+
+    @app.get("/reports/bills/<int:bill_id>/thumb.jpg")
+    def bill_notice_thumb(bill_id: int):
+        data = bill_notice_thumb_bytes(bill_or_404(bill_id), q.payment_settings())
+        return send_file(BytesIO(data), mimetype="image/jpeg", max_age=0)
 
     @app.get("/reports/bills/<int:bill_id>/notice.png")
     def bill_notice_image(bill_id: int):

@@ -721,3 +721,16 @@ def tenant_bills(tenant: Any) -> list[Any]:
         """,
         (tenant.RoomId, tenant.MoveOutDate, tenant.MoveInDate),
     )
+
+
+def unpaid_bills_before(year: int, month: int, property_id: int | None = None, limit: int = 50) -> list[Any]:
+    """Hóa đơn các tháng trước (year, month) chưa thu tiền — để nhắc nợ."""
+    clause, params = property_filter("PropertyId", property_id)
+    return rows(
+        f"""
+        SELECT TOP ({int(limit)}) {BILL_COLUMNS} FROM dbo.v_MonthlyRoomBills
+        WHERE PaidAt IS NULL AND (YearNumber * 12 + MonthNumber) < ? {clause}
+        ORDER BY YearNumber DESC, MonthNumber DESC, PropertyName, RoomCode;
+        """,
+        (year * 12 + month, *params),
+    )

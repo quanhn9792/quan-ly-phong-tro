@@ -462,6 +462,22 @@ input::placeholder, textarea::placeholder { color: #a3aeaa; }
     background: #fff; color: var(--primary-ink); font-size: 12.5px; font-weight: 650; letter-spacing: 0;
 }
 
+/* Còn nợ các tháng trước */
+.overdue { margin-bottom: 18px; border-color: #f4dfae; overflow: hidden; }
+.overdue-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 18px; background: var(--amber-soft); }
+.overdue-head h2 { color: var(--amber); }
+.overdue-head strong { color: var(--amber); font-size: 17px; font-variant-numeric: tabular-nums; }
+.overdue-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 10px 18px; border-top: 1px solid var(--line); }
+.overdue-info { display: grid; gap: 1px; min-width: 0; }
+.overdue-info span { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.overdue-amount { font-variant-numeric: tabular-nums; }
+.overdue-row .paid-toggle.is-paid { opacity: 0.6; }
+@media (max-width: 560px) {
+    .overdue-row { grid-template-columns: minmax(0, 1fr) auto; }
+    .overdue-row .paid-toggle { grid-column: 1 / -1; }
+    .overdue-row .paid-toggle, .overdue-row .paid-toggle form, .overdue-row .paid-btn { width: 100%; }
+}
+
 /* Trạng thái thu tiền */
 .paid-toggle { display: inline-flex; }
 .paid-btn { background: var(--amber-soft); color: var(--amber); border-color: #f4dfae; }

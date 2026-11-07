@@ -14,7 +14,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="manifest" href="{{ url_for('manifest') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=5">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=6">
 </head>
 <body>
     {% set endpoint = request.endpoint %}
@@ -32,6 +32,7 @@
         ("Cài đặt", [
             ("months_page", "Đơn giá dự phòng", "calendar", ["months_page"]),
             ("payment_settings_page", "QR & email", "settings", ["payment_settings_page"]),
+            ("account_page", "Tài khoản", "users", ["account_page"]),
         ]),
     ] %}
     <header class="appbar">
@@ -117,7 +118,7 @@
         {% block content %}{% endblock %}
     </main>
 
-    <script src="{{ url_for('static', filename='app.js') }}?v=1"></script>
+    <script src="{{ url_for('static', filename='app.js') }}?v=2"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

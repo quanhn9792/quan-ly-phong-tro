@@ -318,6 +318,14 @@ GO
 IF COL_LENGTH(N'dbo.RoomMonthlyBills', N'PaidAt') IS NULL
 BEGIN
     ALTER TABLE dbo.RoomMonthlyBills ADD PaidAt DATETIME2(0) NULL;
+    -- Lần đầu nâng cấp: coi hóa đơn các tháng TRƯỚC tháng hiện tại là đã thu
+    -- (trước đây chưa theo dõi), để không hiện cả lịch sử thành "còn nợ".
+    EXEC(N'
+        UPDATE b SET PaidAt = COALESCE(b.UpdatedAt, b.CreatedAt, SYSDATETIME())
+        FROM dbo.RoomMonthlyBills AS b
+        INNER JOIN dbo.BillingMonths AS bm ON bm.BillingMonthId = b.BillingMonthId
+        WHERE DATEFROMPARTS(bm.YearNumber, bm.MonthNumber, 1) < DATEFROMPARTS(YEAR(GETDATE()), MONTH(GETDATE()), 1);
+    ');
 END;
 GO
 

@@ -33,7 +33,7 @@
             {% set link = bill|zalo_link %}
             <article class="card zalo-item {{ 'is-sent' if bill.RoomMonthlyBillId in sent_ids else '' }} {{ 'no-zalo' if not link else '' }}" data-zalo-item>
                 <a class="zalo-thumb" href="{{ url_for('bill_notice_image', bill_id=bill.RoomMonthlyBillId) }}" target="_blank" title="Xem ảnh">
-                    <img src="{{ url_for('bill_notice_image', bill_id=bill.RoomMonthlyBillId) }}" alt="Ảnh hóa đơn {{ bill|unit_title }}" loading="lazy">
+                    <img src="{{ url_for('bill_notice_thumb', bill_id=bill.RoomMonthlyBillId) }}" width="72" height="100" decoding="async" alt="Ảnh hóa đơn {{ bill|unit_title }}" loading="lazy">
                 </a>
                 <div class="zalo-info">
                     <div class="zalo-title">
