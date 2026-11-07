@@ -12,8 +12,10 @@ import time
 from collections import defaultdict, deque
 from datetime import timedelta
 from typing import Any
+from urllib.parse import urlsplit
 
-from flask import Flask, abort, flash, g, redirect, render_template, request, session, url_for
+from flask import Flask, abort, current_app, flash, g, redirect, render_template, request, session, url_for
+from itsdangerous import BadSignature, URLSafeTimedSerializer
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .db import execute, one
@@ -104,6 +106,9 @@ def record_failure(keys: list[str]) -> None:
         if len(_failures) > MAX_TRACKED_KEYS:
             for stale in [k for k, v in _failures.items() if not v or now - v[-1] > FAILURE_WINDOW_SECONDS]:
                 del _failures[stale]
+            # Vẫn đầy (đang bị dò hàng loạt): bỏ các khóa cũ nhất để bộ nhớ không phình mãi
+            while len(_failures) > MAX_TRACKED_KEYS:
+                del _failures[next(iter(_failures))]
         for key in keys:
             _recent(key, now).append(now)
 
@@ -112,6 +117,37 @@ def clear_failures(keys: list[str]) -> None:
     with _failures_lock:
         for key in keys:
             _failures.pop(key, None)
+
+
+# ----- Thiết bị tin cậy -----
+# Chống người lạ cố tình gõ sai để khóa chủ nhà (OWASP "device cookie"): thiết bị đã đăng nhập thành công
+# nhận cookie ký bằng SECRET_KEY; khi tài khoản đang bị khóa vì nhập sai, thiết bị đó vẫn đăng nhập được.
+DEVICE_COOKIE = "trusted_device"
+DEVICE_DAYS = 365
+
+
+def _device_serializer() -> URLSafeTimedSerializer:
+    return URLSafeTimedSerializer(current_app.secret_key, salt="trusted-device")
+
+
+def trusted_device_for(user: Any | None) -> bool:
+    raw = request.cookies.get(DEVICE_COOKIE)
+    if not raw or user is None:
+        return False
+    try:
+        data = _device_serializer().loads(raw, max_age=DEVICE_DAYS * 86400)
+    except BadSignature:
+        return False
+    # Đổi mật khẩu => mọi thiết bị tin cậy cũ hết hiệu lực
+    return data.get("u") == int(user.UserId) and data.get("v") == password_version(user)
+
+
+def remember_device(response, user: Any) -> None:
+    token = _device_serializer().dumps({"u": int(user.UserId), "v": password_version(user)})
+    response.set_cookie(
+        DEVICE_COOKIE, token, max_age=DEVICE_DAYS * 86400, httponly=True, samesite="Lax",
+        secure=current_app.session_interface.get_cookie_secure(current_app),
+    )
 
 
 # ----- CSRF -----
@@ -131,7 +167,14 @@ def csrf_valid() -> bool:
 
 
 def safe_next(target: str | None) -> str | None:
-    return target if target and target.startswith("/") and not target.startswith("//") and "\\" not in target else None
+    """Chỉ nhận đường dẫn nội bộ ("/rooms?x=1"). Chặn "//evil", dấu gạch ngược và ký tự điều khiển như tab/xuống dòng:
+    trình duyệt bỏ các ký tự đó khi đọc URL nên "/<tab>/evil.com" thành "//evil.com" (chuyển ra trang ngoài)."""
+    if not target or not target.startswith("/") or target.startswith("//"):
+        return None
+    if "\\" in target or any(ord(ch) < 32 or ord(ch) == 127 for ch in target):
+        return None
+    parts = urlsplit(target)
+    return target if not parts.scheme and not parts.netloc else None
 
 
 # ----- Gắn vào app -----
@@ -187,10 +230,11 @@ def register_auth(app: Flask) -> None:
             username = request.form.get("username", "").strip()
             password = request.form.get("password", "")
             keys = [f"ip:{request.remote_addr}", f"user:{username.lower()}"]
-            if login_blocked(keys):
+            user = get_user_by_username(username) if username else None
+            # Thiết bị đã từng đăng nhập thành công không bị khóa bởi người lạ đoán mật khẩu
+            if login_blocked(keys) and not trusted_device_for(user):
                 flash("Đăng nhập sai quá nhiều lần. Hãy thử lại sau 15 phút.", "error")
             else:
-                user = get_user_by_username(username) if username else None
                 password_ok = check_password_hash(user.PasswordHash if user else _DUMMY_HASH, password)
                 if user is not None and password_ok:
                     clear_failures(keys)
@@ -199,7 +243,9 @@ def register_auth(app: Flask) -> None:
                     session["user_id"] = int(user.UserId)
                     session["pwv"] = password_version(user)
                     execute("UPDATE dbo.AppUsers SET LastLoginAt = SYSDATETIME() WHERE UserId = ?;", (user.UserId,))
-                    return redirect(next_url)
+                    response = redirect(next_url)
+                    remember_device(response, user)
+                    return response
                 record_failure(keys)
                 flash("Sai tên đăng nhập hoặc mật khẩu.", "error")
         return render_template("login.html", next_url=next_url, no_user=no_user)
@@ -220,14 +266,18 @@ def register_auth(app: Flask) -> None:
                     flash(str(exc), "error")
                 else:
                     # Giữ đăng nhập trên thiết bị này, các thiết bị khác bị đăng xuất
-                    session["pwv"] = password_version(get_user(int(g.user.UserId)))
+                    updated = get_user(int(g.user.UserId))
+                    session["pwv"] = password_version(updated)
                     flash("Đã đổi mật khẩu. Các thiết bị khác đã bị đăng xuất.", "success")
-                    return redirect(url_for("account_page"))
+                    response = redirect(url_for("account_page"))
+                    remember_device(response, updated)  # thiết bị này vẫn là thiết bị tin cậy
+                    return response
         return render_template("account.html", min_length=MIN_PASSWORD_LENGTH)
 
     @app.post("/logout")
     def logout():
         session.clear()
         response = redirect(url_for("login"))
-        response.headers["Clear-Site-Data"] = '"cache"'  # xóa trang đã lưu offline trên trình duyệt
+        # "storage" mới xóa Cache Storage của service worker (trang đã lưu offline); "cache" chỉ là HTTP cache
+        response.headers["Clear-Site-Data"] = '"cache", "storage"'
         return response

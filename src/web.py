@@ -451,7 +451,8 @@ def create_app() -> Flask:
             message = "Đã cập nhật giá và giai đoạn đơn giá."
             if updated:
                 until = f"đến {to_month:02d}/{to_year}" if to_month and to_year else "trở đi"
-                message += f" Đã tính lại {updated} hóa đơn từ {from_month:02d}/{from_year} {until}."
+                message += (f" Đã tính lại {updated} hóa đơn từ {from_month:02d}/{from_year} {until}"
+                            " (hóa đơn đã thu mà tổng tiền đổi sẽ chuyển về Chưa thu).")
             flash(message, "success")
             return redirect(url_for("rooms_page"))
 
@@ -575,12 +576,18 @@ def create_app() -> Flask:
             room = q.get_room(form_int("room_id"))
             if room is None:
                 raise ValueError("Không tìm thấy phòng.")
-            q.save_tenant(tenant_id, tenant_fields_from_form(False, room))
+            fields = tenant_fields_from_form(False, room)
+            q.save_tenant(tenant_id, fields)
         except ValueError as exc:
             flash(str(exc), "error")
             return redirect(url_for("tenants_page"))
         for room_id in {existing.RoomId, room.RoomId}:
             q.sync_room_status(room_id)
+        # Ngưng thuê hoặc chuyển phòng: link cũ sẽ cho xem hóa đơn của người khác => thu hồi
+        if not fields["IsCurrent"] or int(existing.RoomId) != int(room.RoomId):
+            if q.tenant_portal_token(tenant_id):
+                q.set_tenant_portal_token(tenant_id, None)
+                flash("Link app cũ của khách đã được thu hồi (ngưng thuê / chuyển phòng). Tạo link mới nếu cần.", "success")
         flash("Đã cập nhật khách thuê.", "success")
         return redirect(url_for("tenants_page"))
 
@@ -607,8 +614,12 @@ def create_app() -> Flask:
 
     @app.post("/tenants/<int:tenant_id>/portal-link")
     def tenant_portal_link(tenant_id: int):
-        if q.one("SELECT 1 AS Found FROM dbo.Tenants WHERE TenantId = ?;", (tenant_id,)) is None:
+        tenant = q.one("SELECT IsCurrent FROM dbo.Tenants WHERE TenantId = ?;", (tenant_id,))
+        if tenant is None:
             abort(404)
+        if request.form.get("action") != "revoke" and not tenant.IsCurrent:
+            flash("Khách đã ngưng thuê nên không tạo link app được.", "error")
+            return redirect(url_for("tenants_page"))
         if request.form.get("action") == "revoke":
             q.set_tenant_portal_token(tenant_id, None)
             flash("Đã thu hồi link của khách. Link cũ không còn mở được.", "success")
@@ -670,7 +681,15 @@ def create_app() -> Flask:
                 flash("Chỉ số mới phải lớn hơn hoặc bằng chỉ số cũ.", "error")
                 return redirect(url_for("bill_form", year=year, month=month, room_id=room.RoomId))
 
+            before = q.bill_for_room_month(room.RoomId, year, month)
             q.save_bill(room, year, month, electric_old, electric_new, water_old, water_new, form_text("note", max_length=500))
+            after = q.bill_for_room_month(room.RoomId, year, month)
+            # Hóa đơn đã thu / khách đã báo chuyển khoản mà tổng tiền đổi: chuyển về chưa thu để kiểm tra lại
+            if before and after and (before.PaidAt or before.TenantReportedPaidAt) and before.TotalAmount != after.TotalAmount:
+                q.set_bill_paid(int(after.RoomMonthlyBillId), False)
+                q.clear_tenant_report(int(after.RoomMonthlyBillId))
+                flash(f"Tổng tiền {room.RoomCode} đổi từ {format_money(before.TotalAmount)} thành {format_money(after.TotalAmount)}: "
+                      "hóa đơn đã chuyển về Chưa thu, hãy gửi lại cho khách.", "error")
             next_room = q.next_unbilled_room(year, month, room.RoomId, property_id)
             if next_room is not None:
                 flash(f"Đã lưu hóa đơn {room.RoomCode}. Tiếp theo: {next_room.RoomCode}.", "success")
@@ -834,6 +853,14 @@ def create_app() -> Flask:
         if request.headers.get("X-Requested-With") == "fetch":
             return {"paid": paid}
         flash(f"{bill.RoomCode} tháng {bill.MonthNumber:02d}/{bill.YearNumber}: {'đã thu tiền' if paid else 'chuyển về chưa thu'}.", "success")
+        return back("bill_detail_page", bill_id=bill_id)
+
+    @app.post("/reports/bills/<int:bill_id>/reject-report")
+    def reject_tenant_report(bill_id: int):
+        bill = bill_or_404(bill_id)
+        q.clear_tenant_report(bill_id)
+        flash(f"{bill.RoomCode} tháng {bill.MonthNumber:02d}/{bill.YearNumber}: đã bỏ báo chuyển khoản của khách "
+              "(chưa nhận được tiền). Khách sẽ thấy lại nút \"Tôi đã chuyển khoản\".", "success")
         return back("bill_detail_page", bill_id=bill_id)
 
     @app.post("/reports/bills/<int:bill_id>/zalo-sent")
