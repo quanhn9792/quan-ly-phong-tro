@@ -238,3 +238,14 @@ def test_property_switcher_and_no_open_redirect(owner):
         assert "evil.example" not in response.headers["Location"], evil
     response = owner.post("/select-property", data={"property_id": "", "next": "/rooms", "csrf_token": owner.csrf})
     assert response.headers["Location"].endswith("/rooms")
+
+
+def test_bill_detail_shows_report_and_app_link(owner, app):
+    tenant = q.tenant_list()[0]
+    owner.post(f"/tenants/{tenant.TenantId}/portal-link", data={"action": "create", "csrf_token": owner.csrf})
+    token = q.tenant_portal_token(tenant.TenantId)
+    bill = q.tenant_bills(q.tenant_by_portal_token(token))[0]
+    q.set_bill_paid(bill.RoomMonthlyBillId, False)
+    app.test_client().post(f"/k/{token}/hoa-don/{bill.RoomMonthlyBillId}/da-chuyen")
+    html = owner.get(f"/reports/bills/{bill.RoomMonthlyBillId}").get_data(as_text=True)
+    assert "Khách báo đã chuyển khoản lúc" in html and f"/k/{token}" in html

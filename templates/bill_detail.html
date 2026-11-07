@@ -22,6 +22,29 @@
     </div>
 </header>
 
+{% if bill.TenantReportedPaidAt and not bill.PaidAt %}
+    <div class="callout callout-info">
+        {{ icon("wallet") }}
+        <div>
+            <strong>Khách báo đã chuyển khoản lúc {{ bill.TenantReportedPaidAt.strftime("%H:%M %d/%m/%Y") }}</strong>
+            <span>Kiểm tra tài khoản ngân hàng (nội dung {{ bill|payment_memo }}) rồi bấm nút thu tiền ở trên để xác nhận.</span>
+        </div>
+    </div>
+{% endif %}
+
+{% if bill.TenantPortalToken %}
+    {% set app_link = portal_url(bill.TenantPortalToken) %}
+    <div class="callout callout-ok">
+        {{ icon("phone") }}
+        <div>
+            <strong>Khách đã có app xem hóa đơn</strong>
+            <span>Gửi link để khách xem hóa đơn này, quét QR và báo đã chuyển khoản.</span>
+        </div>
+        <button type="button" class="btn btn-ghost" data-copy="{{ app_link }}" data-share-link="{{ app_link }}"
+                data-share-title="Hóa đơn tiền nhà {{ bill|unit_title }}">{{ icon("send") }} Gửi link app</button>
+    </div>
+{% endif %}
+
 {% if not has_payment_qr %}
     <div class="callout callout-info">
         {{ icon("alert") }}
