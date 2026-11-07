@@ -25,9 +25,16 @@ def test_owner_pages_render(owner, path):
     assert response.headers["Cache-Control"] == "private, no-store"
 
 
-def test_post_without_csrf_is_rejected(owner):
-    assert owner.post("/select-property", data={"property_id": ""}).status_code == 400
-    assert owner.post("/select-property", data={"property_id": "", "csrf_token": owner.csrf}).status_code == 302
+def test_post_without_csrf_is_rejected(owner, app):
+    property_id = q.property_list()[0].PropertyId
+    owner.post("/select-property", data={"property_id": str(property_id)})  # thiếu token
+    with owner.session_transaction() as sess:
+        assert "property_id" not in sess
+    owner.post("/select-property", data={"property_id": str(property_id), "csrf_token": owner.csrf})
+    with owner.session_transaction() as sess:
+        assert sess["property_id"] == property_id
+    owner.post("/select-property", data={"property_id": "", "csrf_token": owner.csrf})
+    assert app.test_client().post("/select-property", data={"property_id": ""}).status_code == 400
 
 
 def test_wrong_password_and_lockout(app):
@@ -126,3 +133,26 @@ def test_tenant_reports_paid_then_owner_confirms(owner, app):
     assert q.get_bill(other.RoomMonthlyBillId).TenantReportedPaidAt is None
     owner.post(f"/reports/bills/{bill.RoomMonthlyBillId}/paid", data={"paid": "1", "csrf_token": owner.csrf})
     assert "Khách báo đã chuyển khoản" not in owner.get("/").get_data(as_text=True)
+
+
+def test_error_pages_are_friendly(app, owner):
+    guest = app.test_client()
+    response = guest.get("/k/" + "x" * 43)
+    assert response.status_code == 404 and "bị thu hồi" in response.get_data(as_text=True)
+    # Phiên hết hạn khi đang gửi form: báo lỗi dễ hiểu rồi quay lại trang, không hiện trang 400 trống
+    response = owner.post("/select-property", data={"property_id": ""}, headers={"Referer": "/rooms"})
+    assert response.status_code == 302
+
+
+def test_db_error_details_hidden_from_guests(app, monkeypatch):
+    import pyodbc
+
+    from src import portal
+
+    def boom(token):
+        raise pyodbc.Error("08001", "SECRET-SERVER-NAME")
+
+    monkeypatch.setattr(portal.q, "tenant_by_portal_token", boom)
+    response = app.test_client().get("/k/" + "a" * 43)
+    assert response.status_code == 503
+    assert "SECRET-SERVER-NAME" not in response.get_data(as_text=True)

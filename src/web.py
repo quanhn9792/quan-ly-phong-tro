@@ -11,6 +11,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 import pyodbc
 from flask import Flask, abort, flash, g, redirect, render_template, request, send_file, send_from_directory, session, url_for
+from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from . import queries as q
@@ -233,7 +234,27 @@ def create_app() -> Flask:
 
     @app.errorhandler(pyodbc.Error)
     def handle_db_error(error: pyodbc.Error):
+        app.logger.error("Lỗi database: %s", error)
+        if g.get("user") is None:
+            # Người ngoài (khách mở link, người lạ): không lộ chi tiết server/database
+            return render_template("http_error.html", code=503, title="Hệ thống đang bận",
+                                   message="Máy chủ chưa sẵn sàng. Vui lòng thử lại sau ít phút."), 503
         return render_template("error.html", error=str(error)), 500
+
+    @app.errorhandler(HTTPException)
+    def handle_http_error(error: HTTPException):
+        if error.code is None or error.code < 400:
+            return error  # redirect nội bộ của Flask (vd thêm dấu /)
+        if request.method != "GET" and error.code == 400 and g.get("user") is not None:
+            flash(error.description or "Yêu cầu không hợp lệ.", "error")
+            return back()
+        titles = {400: "Yêu cầu không hợp lệ", 401: "Cần đăng nhập", 403: "Không có quyền", 404: "Không tìm thấy trang",
+                  405: "Thao tác không được hỗ trợ", 413: "File quá lớn"}
+        messages = {404: "Link có thể đã sai hoặc đã bị thu hồi. Hãy hỏi lại chủ nhà nếu bạn là khách thuê.",
+                    413: "File tải lên lớn hơn giới hạn cho phép (6 MB)."}
+        code = error.code or 500
+        return render_template("http_error.html", code=code, title=titles.get(code, "Có lỗi xảy ra"),
+                               message=messages.get(code, error.description)), code
 
     # ----- PWA: cài lên màn hình chính điện thoại -----
 
