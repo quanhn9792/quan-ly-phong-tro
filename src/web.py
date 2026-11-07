@@ -14,6 +14,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 import pyodbc
 from flask import Flask, abort, flash, g, redirect, render_template, request, send_file, send_from_directory, session, url_for
+from flask.sessions import SecureCookieSessionInterface
 from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -149,6 +150,11 @@ def secret_key() -> str:
     return key_file.read_text(encoding="utf-8").strip()
 
 
+class HttpsAwareSessionInterface(SecureCookieSessionInterface):
+    def get_cookie_secure(self, app: Flask) -> bool:
+        return bool(app.config.get("SESSION_COOKIE_SECURE")) or request.is_secure
+
+
 def asset_version(static_folder: str) -> str:
     """Mã phiên bản file tĩnh = hash nội dung CSS/JS: sửa file là điện thoại tự tải bản mới, không cần đổi tay ?v=."""
     digest = hashlib.sha256()
@@ -207,7 +213,8 @@ def create_app() -> Flask:
     if os.getenv("TRUST_PROXY") == "1":
         # Chạy sau Tailscale Funnel / Cloudflare Tunnel: lấy đúng IP + https của người dùng
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)  # type: ignore[method-assign]
-        app.config["SESSION_COOKIE_SECURE"] = True
+    # Cookie phiên chỉ gắn cờ Secure khi request đi qua HTTPS (tunnel); mở bằng http://127.0.0.1 trên máy vẫn đăng nhập được
+    app.session_interface = HttpsAwareSessionInterface()
     register_auth(app)
     register_portal(app)
     app.after_request(compress_response)

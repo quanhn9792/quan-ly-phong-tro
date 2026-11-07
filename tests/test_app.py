@@ -193,3 +193,15 @@ def test_asset_version_matches_service_worker(owner, app):
 def test_create_all_portal_links(owner):
     owner.post("/tenants/portal-links", data={"csrf_token": owner.csrf})
     assert all(t.PortalToken for t in q.tenant_list() if t.IsCurrent)
+
+
+def test_session_cookie_secure_only_over_https(app):
+    from .conftest import PASSWORD
+
+    for scheme, secure in (("http", False), ("https", True)):
+        client = app.test_client()
+        base = f"{scheme}://localhost"
+        token = csrf_from(client.get(base + "/login").get_data(as_text=True))
+        response = client.post(base + "/login", data={"username": "admin", "password": PASSWORD, "csrf_token": token})
+        cookie = response.headers.get("Set-Cookie", "")
+        assert ("Secure" in cookie) is secure, cookie
