@@ -30,8 +30,11 @@ PUBLIC_ENDPOINTS = {"login", "static", "service_worker", "manifest", "offline_pa
 # Chặn dò mật khẩu: tối đa 5 lần sai / 15 phút cho mỗi IP và mỗi tên đăng nhập
 MAX_FAILURES = 5
 FAILURE_WINDOW_SECONDS = 15 * 60
+MAX_TRACKED_KEYS = 5000  # giới hạn bộ nhớ khi bị dò hàng loạt tên đăng nhập
 _failures: dict[str, deque[float]] = defaultdict(deque)
 _failures_lock = threading.Lock()
+# Hash giả để so sánh khi tên đăng nhập không tồn tại => thời gian phản hồi như nhau
+_DUMMY_HASH = generate_password_hash(secrets.token_hex(16))
 
 
 # ----- Tài khoản -----
@@ -98,6 +101,9 @@ def login_blocked(keys: list[str]) -> bool:
 def record_failure(keys: list[str]) -> None:
     now = time.monotonic()
     with _failures_lock:
+        if len(_failures) > MAX_TRACKED_KEYS:
+            for stale in [k for k, v in _failures.items() if not v or now - v[-1] > FAILURE_WINDOW_SECONDS]:
+                del _failures[stale]
         for key in keys:
             _recent(key, now).append(now)
 
@@ -185,7 +191,8 @@ def register_auth(app: Flask) -> None:
                 flash("Đăng nhập sai quá nhiều lần. Hãy thử lại sau 15 phút.", "error")
             else:
                 user = get_user_by_username(username) if username else None
-                if user is not None and check_password_hash(user.PasswordHash, password):
+                password_ok = check_password_hash(user.PasswordHash if user else _DUMMY_HASH, password)
+                if user is not None and password_ok:
                     clear_failures(keys)
                     session.clear()
                     session.permanent = request.form.get("remember") == "1"
