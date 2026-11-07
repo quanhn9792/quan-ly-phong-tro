@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import csv
 import gzip
+import hashlib
 import os
 import secrets
 from datetime import date
 from decimal import Decimal
 from io import BytesIO, StringIO
+from pathlib import Path
 from typing import Any
 from zipfile import ZIP_DEFLATED, ZipFile
 
@@ -147,6 +149,16 @@ def secret_key() -> str:
     return key_file.read_text(encoding="utf-8").strip()
 
 
+def asset_version(static_folder: str) -> str:
+    """Mã phiên bản file tĩnh = hash nội dung CSS/JS: sửa file là điện thoại tự tải bản mới, không cần đổi tay ?v=."""
+    digest = hashlib.sha256()
+    for name in ("styles.css", "app.js", "zalo.js", "sw.js"):
+        path = Path(static_folder) / name
+        if path.exists():
+            digest.update(path.read_bytes())
+    return digest.hexdigest()[:10]
+
+
 def portal_url(token: str) -> str:
     """Link gửi khách. Ưu tiên PUBLIC_URL (địa chỉ tunnel) vì chủ nhà có thể đang mở web bằng 127.0.0.1."""
     path = url_for("portal_home", token=token)
@@ -215,6 +227,14 @@ def create_app() -> Flask:
     )
     app.jinja_env.globals.update(shift_month=q.shift_month, today=date.today, portal_url=portal_url, is_local_host=is_local_host)
 
+    def current_asset_version() -> str:
+        # Khi đang sửa giao diện (TEMPLATES_AUTO_RELOAD) tính lại mỗi lần, bình thường tính 1 lần lúc khởi động
+        if app.config["TEMPLATES_AUTO_RELOAD"]:
+            return asset_version(app.static_folder)
+        return app.config.setdefault("ASSET_VERSION", asset_version(app.static_folder))
+
+    app.jinja_env.globals["asset_v"] = current_asset_version
+
     @app.context_processor
     def inject_properties():
         if g.get("user") is None:
@@ -267,7 +287,8 @@ def create_app() -> Flask:
     @app.get("/sw.js")
     def service_worker():
         # Service worker phải nằm ở gốc "/" để điều khiển được mọi trang
-        response = send_from_directory(app.static_folder, "sw.js", mimetype="application/javascript", max_age=0)
+        script = (Path(app.static_folder) / "sw.js").read_text(encoding="utf-8")
+        response = app.response_class(script.replace("__ASSET_VERSION__", current_asset_version()), mimetype="application/javascript")
         response.headers["Cache-Control"] = "no-cache"
         return response
 

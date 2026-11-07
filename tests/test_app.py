@@ -178,3 +178,13 @@ def test_export_csv(owner):
     text = response.data.decode("utf-8-sig")
     assert text.splitlines()[0].startswith("Nhà,Phòng/căn")
     assert len(text.strip().splitlines()) == 1 + len(q.month_bills(2026, 11))
+
+
+def test_asset_version_matches_service_worker(owner, app):
+    import re as _re
+
+    page = owner.get("/").get_data(as_text=True)
+    version = _re.search(r"styles\.css\?v=([0-9a-f]{10})", page).group(1)
+    sw = app.test_client().get("/sw.js").get_data(as_text=True)
+    assert f'const VERSION = "{version}"' in sw and "__ASSET_VERSION__" not in sw
+    assert f"app.js?v={version}" in page
