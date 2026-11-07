@@ -99,6 +99,8 @@ Cần đặt `PUBLIC_URL` là địa chỉ tunnel để link gửi khách không
 
 Trên điện thoại, nút **Gửi Zalo** mở bảng Chia sẻ của hệ điều hành kèm ảnh hóa đơn → chọn Zalo → chọn khách (số Zalo của khách hiện ngay sau khi chia sẻ để chọn đúng người).
 
+**Xem offline:** các trang đã mở được lưu trên điện thoại. Khi máy chủ tắt hoặc mất mạng, app vẫn hiện bản lưu gần nhất (có dải "Đang offline"); khách vẫn xem hóa đơn và quét QR chuyển khoản được. Đăng xuất sẽ xóa toàn bộ bản lưu trên máy đó.
+
 Bảo mật: đăng nhập bắt buộc cho mọi trang, mật khẩu được băm, chặn 15 phút sau 5 lần nhập sai, mọi thao tác ghi đều có CSRF token, trang dữ liệu không được trình duyệt lưu cache. Hãy đặt mật khẩu mạnh và cài Windows Update / bản vá thường xuyên cho máy chủ.
 
 ## Cấu trúc

@@ -42,3 +42,11 @@
     </div>
 </section>
 {% endblock %}
+
+{% block scripts %}
+<script>
+    // Đã đăng xuất / hết phiên: xóa các trang đã lưu offline trên máy này (có dữ liệu khách thuê)
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage("clear-pages");
+    if (window.caches) caches.delete("pages-v1").catch(() => {});
+</script>
+{% endblock %}

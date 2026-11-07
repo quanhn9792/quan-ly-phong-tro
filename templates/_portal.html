@@ -17,3 +17,9 @@
     <p class="portal-foot muted small">Link này dành riêng cho {{ tenant.FullName }}. Vui lòng không chia sẻ cho người khác.</p>
 </main>
 {% endblock %}
+{% block scripts %}
+<script>
+    // Lưu trang + QR để xem / quét được cả khi máy chủ của chủ nhà đang tắt
+    if ("serviceWorker" in navigator && window.isSecureContext) navigator.serviceWorker.register("/sw.js").catch(() => {});
+</script>
+{% endblock %}

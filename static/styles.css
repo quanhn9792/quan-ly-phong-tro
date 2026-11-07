@@ -149,6 +149,12 @@ body.standalone { display: block; }
 .tab .tab-icon { position: relative; display: inline-grid; overflow: visible; max-width: none; }
 .tab-icon .badge { position: absolute; top: -5px; right: -11px; margin: 0; border: 2px solid var(--surface); height: 20px; }
 
+.offline-banner {
+    position: sticky; top: 0; z-index: 50; padding: calc(8px + env(safe-area-inset-top)) 16px 8px;
+    background: var(--amber-soft); color: var(--amber); border-bottom: 1px solid #f4dfae;
+    font-size: 13.5px; font-weight: 600; text-align: center; grid-column: 1 / -1;
+}
+
 /* Chỉ hiện trên điện thoại */
 .appbar, .tabbar, .menu-backdrop { display: none; }
 

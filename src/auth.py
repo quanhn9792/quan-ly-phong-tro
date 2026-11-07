@@ -228,4 +228,6 @@ def register_auth(app: Flask) -> None:
     @app.post("/logout")
     def logout():
         session.clear()
-        return redirect(url_for("login"))
+        response = redirect(url_for("login"))
+        response.headers["Clear-Site-Data"] = '"cache"'  # xóa trang đã lưu offline trên trình duyệt
+        return response
