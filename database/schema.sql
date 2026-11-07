@@ -336,6 +336,13 @@ BEGIN
 END;
 GO
 
+/* Số điện thoại / Zalo chủ nhà: hiện nút Gọi / Nhắn Zalo trong app của khách */
+IF COL_LENGTH(N'dbo.PaymentSettings', N'OwnerPhone') IS NULL
+BEGIN
+    ALTER TABLE dbo.PaymentSettings ADD OwnerPhone NVARCHAR(30) NULL;
+END;
+GO
+
 /* ===== Tài khoản đăng nhập (chủ nhà) ===== */
 IF OBJECT_ID(N'dbo.AppUsers', N'U') IS NULL
 BEGIN

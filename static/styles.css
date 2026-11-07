@@ -135,6 +135,8 @@ body.standalone { display: block; }
 .portal-bill-amount { justify-items: end; font-variant-numeric: tabular-nums; }
 .portal-hint { margin: 0; }
 .portal-foot { text-align: center; }
+.portal-contact .card-body { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.portal-contact-actions { display: flex; gap: 8px; }
 .portal .invoice-head strong { font-size: 20px; }
 .install-tip > summary { padding: 14px 16px; list-style: none; cursor: pointer; }
 .install-tip > summary::-webkit-details-marker { display: none; }

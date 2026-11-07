@@ -640,7 +640,7 @@ def payment_settings() -> Any | None:
     return one(
         """
         SELECT PaymentSettingsId, QrImage, QrMimeType, QrFileName, AccountInfo, SenderName, FromEmail,
-               SmtpHost, SmtpPort, SmtpUseTls, SmtpUsername, SmtpPassword, UpdatedAt
+               SmtpHost, SmtpPort, SmtpUseTls, SmtpUsername, SmtpPassword, OwnerPhone, UpdatedAt
         FROM dbo.PaymentSettings WHERE PaymentSettingsId = 1;
         """
     )
@@ -768,3 +768,7 @@ def tenant_reported_count(property_id: int | None = None) -> int:
         params,
     )
     return int(row.N) if row else 0
+
+
+def save_owner_phone(phone: str | None) -> None:
+    execute("UPDATE dbo.PaymentSettings SET OwnerPhone = ?, UpdatedAt = SYSDATETIME() WHERE PaymentSettingsId = 1;", (phone,))

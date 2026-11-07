@@ -33,14 +33,20 @@ def payment_memo(bill: Any) -> str:
     return f"PHONG {ascii_upper(str(bill.RoomCode))} {period}"
 
 
+def normalize_phone(raw: Any) -> str | None:
+    """'+84 912 345 678' -> '0912345678'; trả None nếu không giống số điện thoại."""
+    digits = "".join(ch for ch in str(raw or "") if ch.isdigit())
+    if digits.startswith("84") and len(digits) == 11:
+        digits = "0" + digits[2:]
+    return digits if len(digits) >= 9 else None
+
+
 def zalo_phone(bill: Any) -> str | None:
     """Số Zalo của khách trong tháng hóa đơn (ưu tiên ô Zalo, sau đó số điện thoại), dạng 0xxxxxxxxx."""
     for raw in (getattr(bill, "TenantZaloPhone", None), getattr(bill, "TenantPhone", None)):
-        digits = "".join(ch for ch in str(raw or "") if ch.isdigit())
-        if digits.startswith("84") and len(digits) == 11:
-            digits = "0" + digits[2:]
-        if len(digits) >= 9:
-            return digits
+        phone = normalize_phone(raw)
+        if phone:
+            return phone
     return None
 
 

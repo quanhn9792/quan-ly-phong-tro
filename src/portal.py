@@ -12,11 +12,11 @@ import secrets
 from io import BytesIO
 from typing import Any
 
-from flask import Flask, Response, abort, redirect, render_template, send_file, url_for
+from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
 from . import auth
 from . import queries as q
-from .notify import bill_image_filename, bill_notice_image_bytes, bill_payment_qr_bytes
+from .notify import bill_image_filename, bill_notice_image_bytes, bill_payment_qr_bytes, normalize_phone
 
 TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_-]{32,64}$")
 PORTAL_ENDPOINTS = {"portal_home", "portal_bill", "portal_qr", "portal_notice", "portal_manifest", "portal_report_paid"}
@@ -53,6 +53,13 @@ def no_store(response: Response) -> Response:
 
 def register_portal(app: Flask) -> None:
     auth.PUBLIC_ENDPOINTS.update(PORTAL_ENDPOINTS)
+
+    @app.context_processor
+    def portal_contact():
+        if not (request.endpoint or "").startswith("portal_"):
+            return {}
+        settings = q.payment_settings()
+        return {"owner_phone": normalize_phone(settings.OwnerPhone) if settings else None}
     auth.CSRF_EXEMPT_ENDPOINTS.update(CSRF_EXEMPT_ENDPOINTS)
 
     @app.get("/k/<token>")

@@ -14,6 +14,17 @@
 </header>
 <main class="portal">
     {% block content %}{% endblock %}
+    {% if owner_phone %}
+        <section class="card portal-contact">
+            <div class="card-body">
+                <strong>Liên hệ chủ nhà</strong>
+                <div class="portal-contact-actions">
+                    <a class="btn btn-ghost" href="tel:{{ owner_phone }}">{{ icon("phone") }} Gọi</a>
+                    <a class="btn btn-ghost" href="https://zalo.me/{{ owner_phone }}" target="_blank" rel="noopener">{{ icon("send") }} Nhắn Zalo</a>
+                </div>
+            </div>
+        </section>
+    {% endif %}
     <p class="portal-foot muted small">Link này dành riêng cho {{ tenant.FullName }}. Vui lòng không chia sẻ cho người khác.</p>
 </main>
 {% endblock %}

@@ -214,3 +214,15 @@ def test_install_page(owner, monkeypatch):
     monkeypatch.setenv("PUBLIC_URL", "https://nha.example.ts.net")
     assert "https://nha.example.ts.net" in owner.get("/install").get_data(as_text=True)
     assert owner.get("/install/qr.png").mimetype == "image/png"
+
+
+def test_owner_phone_shown_in_portal(owner, app):
+    from src.notify import normalize_phone
+
+    assert normalize_phone("+84 912 345 678") == "0912345678" and normalize_phone("12") is None
+    owner.post("/payment-settings", data={"settings_type": "qr", "account_info": "", "owner_phone": "+84 912 345 678",
+                                          "csrf_token": owner.csrf})
+    tenant = q.tenant_list()[0]
+    owner.post(f"/tenants/{tenant.TenantId}/portal-link", data={"action": "create", "csrf_token": owner.csrf})
+    html = app.test_client().get(f"/k/{q.tenant_portal_token(tenant.TenantId)}").get_data(as_text=True)
+    assert 'href="tel:0912345678"' in html and "zalo.me/0912345678" in html

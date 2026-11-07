@@ -23,7 +23,7 @@ Mỗi tháng nhập chỉ số điện/nước, hệ thống tự tính tiền t
 | Thu tiền | Đánh dấu Đã thu / Chưa thu ngay trên Tổng quan, Báo cáo, Gửi Zalo, chi tiết hóa đơn; tổng đã thu / còn phải thu; danh sách **còn nợ các tháng trước** |
 | Tài khoản | Đổi mật khẩu ngay trên app (đăng xuất các thiết bị khác) |
 | Cài lên điện thoại | Mã QR mở app, hướng dẫn cài iPhone / Android, tự kiểm tra cấu hình tunnel |
-| App của khách | Mỗi khách 1 link riêng (không cần mật khẩu): xem hóa đơn các tháng, QR thanh toán, lưu ảnh; cài lên màn hình chính như app |
+| App của khách | Mỗi khách 1 link riêng (không cần mật khẩu): xem hóa đơn các tháng, QR thanh toán, lưu ảnh, báo "Tôi đã chuyển khoản", gọi / nhắn Zalo chủ nhà; cài lên màn hình chính như app |
 
 Khi có từ 2 nhà trở lên, ô **"Đang xem"** ở thanh bên cho phép lọc mọi màn hình theo một nhà.
 

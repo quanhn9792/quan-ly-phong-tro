@@ -956,6 +956,7 @@ def create_app() -> Flask:
                 return redirect(url_for("payment_settings_page"))
             qr = (data, qr_file.mimetype, qr_file.filename[:255])
         q.save_qr_settings(form_text("account_info", max_length=500), qr)
+        q.save_owner_phone(form_text("owner_phone", max_length=30))
         flash("Đã cập nhật mã QR thanh toán.", "success")
         return redirect(url_for("payment_settings_page"))
 
