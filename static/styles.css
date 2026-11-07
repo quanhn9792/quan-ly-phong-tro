@@ -142,6 +142,13 @@ body.standalone { display: block; }
 
 .mobile-total { display: none; }
 
+.badge {
+    display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: auto;
+    border-radius: 99px; background: var(--blue); color: #fff; font-size: 11px; font-weight: 700; line-height: 1;
+}
+.tab .tab-icon { position: relative; display: inline-grid; overflow: visible; max-width: none; }
+.tab-icon .badge { position: absolute; top: -5px; right: -11px; margin: 0; border: 2px solid var(--surface); height: 20px; }
+
 /* Chỉ hiện trên điện thoại */
 .appbar, .tabbar, .menu-backdrop { display: none; }
 

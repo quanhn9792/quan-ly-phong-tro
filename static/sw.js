@@ -1,10 +1,10 @@
 // Service worker: chỉ cache giao diện tĩnh (CSS/JS/icon) để mở app nhanh.
 // KHÔNG cache trang có dữ liệu (hóa đơn, khách thuê) — luôn lấy mới từ máy chủ.
-const VERSION = "v3";
+const VERSION = "v4";
 const STATIC_CACHE = `static-${VERSION}`;
 const PRECACHE = [
     "/offline",
-    "/static/styles.css?v=7",
+    "/static/styles.css?v=8",
     "/static/app.js?v=2",
     "/static/icons/icon-192.png",
 ];

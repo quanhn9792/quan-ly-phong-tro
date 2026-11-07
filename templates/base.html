@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="manifest" href="{{ url_for('manifest') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=7">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=8">
 </head>
 <body>
     {% set endpoint = request.endpoint %}
@@ -76,7 +76,7 @@
                     <span class="nav-group-label">{{ group_label }}</span>
                     {% for target, label, icon_name, active_on in items %}
                         <a href="{{ url_for(target) }}" class="nav-link {{ 'active' if endpoint in active_on else '' }}">
-                            {{ icon(icon_name) }}<span>{{ label }}</span>
+                            {{ icon(icon_name) }}<span>{{ label }}</span>{% if target == "dashboard" and reported_count %}<b class="badge" title="Khách báo đã chuyển khoản">{{ reported_count }}</b>{% endif %}
                         </a>
                     {% endfor %}
                 </div>
@@ -98,7 +98,10 @@
     ] %}
     <nav class="tabbar" aria-label="Điều hướng nhanh">
         {% for target, label, icon_name, active_on in tab_items %}
-            <a href="{{ url_for(target) }}" class="tab {{ 'active' if endpoint in active_on else '' }}">{{ icon(icon_name, 22) }}<span>{{ label }}</span></a>
+            <a href="{{ url_for(target) }}" class="tab {{ 'active' if endpoint in active_on else '' }}">
+                <span class="tab-icon">{{ icon(icon_name, 22) }}{% if target == "dashboard" and reported_count %}<b class="badge" aria-label="{{ reported_count }} khách báo đã chuyển khoản">{{ reported_count }}</b>{% endif %}</span>
+                <span>{{ label }}</span>
+            </a>
         {% endfor %}
         <button type="button" class="tab" data-menu-toggle aria-controls="app-menu" aria-expanded="false">{{ icon("menu", 22) }}<span>Thêm</span></button>
     </nav>

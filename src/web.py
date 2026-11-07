@@ -217,7 +217,7 @@ def create_app() -> Flask:
     @app.context_processor
     def inject_properties():
         if g.get("user") is None:
-            return {"all_properties": [], "current_property": None, "show_property": False}
+            return {"all_properties": [], "current_property": None, "show_property": False, "reported_count": 0}
         try:
             properties = q.property_list()
         except pyodbc.Error:
@@ -226,10 +226,15 @@ def create_app() -> Flask:
         current = next((p for p in properties if p.PropertyId == current_id), None)
         if current_id and current is None:
             session.pop("property_id", None)
+        try:
+            reported_count = q.tenant_reported_count(current.PropertyId if current else None)
+        except pyodbc.Error:
+            reported_count = 0
         return {
             "all_properties": properties,
             "current_property": current,
             "show_property": current is None and len(properties) > 1,
+            "reported_count": reported_count,
         }
 
     @app.errorhandler(pyodbc.Error)

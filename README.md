@@ -69,6 +69,9 @@ Có thể đặt các biến dưới đây trong file `instance\web.env` (xem m�
 
 Ứng dụng là một **PWA**: mở bằng trình duyệt điện thoại rồi "Thêm vào màn hình chính" là có biểu tượng như app thật, mở toàn màn hình, có thanh tab dưới đáy. Máy Windows vẫn là máy chủ giữ dữ liệu, nên **máy phải bật** thì điện thoại mới dùng được.
 
+**Cách nhanh:** cài [Tailscale](https://tailscale.com/download), đăng nhập, rồi chạy
+`powershell -ExecutionPolicy Bypass -File scripts\setup_mobile.ps1` — script tự tạo tài khoản, bật Tailscale Funnel và ghi cấu hình (bước 1–3 dưới đây). Sau đó khởi động lại web và làm bước 4.
+
 1. Tạo tài khoản: `python main.py create-owner` (bắt buộc — web sẽ mở ra Internet).
 2. Mở web ra ngoài bằng một tunnel có HTTPS (PWA và nút Chia sẻ đều cần HTTPS):
    - **Tailscale Funnel** (miễn phí, địa chỉ cố định dạng `https://<tên-máy>.<tailnet>.ts.net`): cài Tailscale, đăng nhập, rồi chạy `tailscale funnel --bg 5000`.

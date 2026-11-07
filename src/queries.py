@@ -754,3 +754,16 @@ def tenant_reported_unpaid(property_id: int | None = None) -> list[Any]:
         """,
         params,
     )
+
+
+def tenant_reported_count(property_id: int | None = None) -> int:
+    clause, params = property_filter("r.PropertyId", property_id)
+    row = one(
+        f"""
+        SELECT COUNT(*) AS N FROM dbo.RoomMonthlyBills AS b
+        INNER JOIN dbo.Rooms AS r ON r.RoomId = b.RoomId
+        WHERE b.PaidAt IS NULL AND b.TenantReportedPaidAt IS NOT NULL {clause};
+        """,
+        params,
+    )
+    return int(row.N) if row else 0
