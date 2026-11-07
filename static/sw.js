@@ -3,13 +3,13 @@
 // - Trang: luôn lấy mới từ máy chủ; mỗi trang mở thành công được lưu lại để khi
 //   mất kết nối (máy chủ tắt / mất mạng) vẫn xem được bản gần nhất, kèm dải "Đang offline".
 // - Đăng xuất: trang /login gửi lệnh xóa toàn bộ trang đã lưu (dữ liệu khách thuê).
-const VERSION = "v5";
+const VERSION = "v6";
 const STATIC_CACHE = `static-${VERSION}`;
 const PAGE_CACHE = "pages-v1";
 const MAX_PAGES = 40;
 const PRECACHE = [
     "/offline",
-    "/static/styles.css?v=9",
+    "/static/styles.css?v=10",
     "/static/app.js?v=2",
     "/static/icons/icon-192.png",
 ];
