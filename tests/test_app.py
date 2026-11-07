@@ -249,3 +249,13 @@ def test_bill_detail_shows_report_and_app_link(owner, app):
     app.test_client().post(f"/k/{token}/hoa-don/{bill.RoomMonthlyBillId}/da-chuyen")
     html = owner.get(f"/reports/bills/{bill.RoomMonthlyBillId}").get_data(as_text=True)
     assert "Khách báo đã chuyển khoản lúc" in html and f"/k/{token}" in html
+
+
+def test_cookie_secure_behind_tunnel_without_forwarded_proto(app, monkeypatch):
+    monkeypatch.setenv("TRUST_PROXY", "1")
+    monkeypatch.setenv("PUBLIC_URL", "https://nha.example.ts.net")
+    client = app.test_client()
+    tunnel = client.get("/login", base_url="http://nha.example.ts.net")  # Tailscale Funnel: không có X-Forwarded-Proto
+    assert "Secure" in tunnel.headers.get("Set-Cookie", "")
+    local = app.test_client().get("/login", base_url="http://127.0.0.1:5000")
+    assert "Secure" not in local.headers.get("Set-Cookie", "")

@@ -151,9 +151,20 @@ def secret_key() -> str:
     return key_file.read_text(encoding="utf-8").strip()
 
 
+def via_public_https() -> bool:
+    """Request đi qua HTTPS: trực tiếp, qua proxy có X-Forwarded-Proto, hoặc tới đúng host của PUBLIC_URL dạng https
+    (Tailscale Funnel không gửi X-Forwarded-Proto nhưng luôn là HTTPS)."""
+    if request.is_secure:
+        return True
+    public = os.getenv("PUBLIC_URL", "").strip().lower()
+    if os.getenv("TRUST_PROXY") != "1" or not public.startswith("https://"):
+        return False
+    return request.host.lower() == public.removeprefix("https://").split("/")[0]
+
+
 class HttpsAwareSessionInterface(SecureCookieSessionInterface):
     def get_cookie_secure(self, app: Flask) -> bool:
-        return bool(app.config.get("SESSION_COOKIE_SECURE")) or request.is_secure
+        return bool(app.config.get("SESSION_COOKIE_SECURE")) or via_public_https()
 
 
 def asset_version(static_folder: str) -> str:

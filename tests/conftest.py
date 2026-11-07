@@ -14,6 +14,9 @@ import pytest
 
 TEST_DB = "QuanLyPhongTro_PyTest"
 os.environ["MSSQL_DATABASE"] = TEST_DB
+# Không để cấu hình thật trong instance/web.env (tunnel, PUBLIC_URL...) ảnh hưởng tới test
+for _key in ("PUBLIC_URL", "TRUST_PROXY", "ANDROID_PACKAGE", "ANDROID_CERT_SHA256", "TEMPLATES_AUTO_RELOAD"):
+    os.environ[_key] = ""
 
 from src import auth  # noqa: E402
 from src import queries as q  # noqa: E402
