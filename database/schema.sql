@@ -301,6 +301,24 @@ BEGIN
 END;
 GO
 
+/* ===== Tài khoản đăng nhập (chủ nhà; khách thuê ở giai đoạn sau) ===== */
+IF OBJECT_ID(N'dbo.AppUsers', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.AppUsers
+    (
+        UserId INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_AppUsers PRIMARY KEY,
+        Username NVARCHAR(50) NOT NULL CONSTRAINT UQ_AppUsers_Username UNIQUE,
+        PasswordHash NVARCHAR(255) NOT NULL,
+        UserRole NVARCHAR(20) NOT NULL CONSTRAINT DF_AppUsers_UserRole DEFAULT (N'OWNER'),
+        IsActive BIT NOT NULL CONSTRAINT DF_AppUsers_IsActive DEFAULT (1),
+        LastLoginAt DATETIME2(0) NULL,
+        CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_AppUsers_CreatedAt DEFAULT (SYSDATETIME()),
+        UpdatedAt DATETIME2(0) NULL,
+        CONSTRAINT CK_AppUsers_UserRole CHECK (UserRole IN (N'OWNER', N'TENANT'))
+    );
+END;
+GO
+
 /* ===== Views ===== */
 CREATE OR ALTER VIEW dbo.v_CurrentRoomTenants
 AS

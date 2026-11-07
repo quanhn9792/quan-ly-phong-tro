@@ -1,0 +1,13 @@
+{% extends "_standalone.html" %}
+
+{% block title %}Mất kết nối{% endblock %}
+
+{% block content %}
+<section class="card auth-card">
+    <div class="card-body form-stack">
+        <h1>Không kết nối được máy chủ</h1>
+        <p class="muted">Điện thoại đang mất mạng, hoặc máy tính chạy phần mềm quản lý đang tắt / ngủ. Hãy kiểm tra rồi thử lại.</p>
+        <button type="button" class="btn btn-primary btn-block" onclick="location.reload()">Thử lại</button>
+    </div>
+</section>
+{% endblock %}

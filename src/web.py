@@ -9,9 +9,11 @@ from typing import Any
 from zipfile import ZIP_DEFLATED, ZipFile
 
 import pyodbc
-from flask import Flask, abort, flash, redirect, render_template, request, send_file, session, url_for
+from flask import Flask, abort, flash, g, redirect, render_template, request, send_file, send_from_directory, session, url_for
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from . import queries as q
+from .auth import register_auth
 from .db import PROJECT_ROOT, init_database
 from .formatting import format_date, format_money, format_number, money_input, parse_decimal
 from .notify import (
@@ -144,6 +146,11 @@ def create_app() -> Flask:
     app = Flask(__name__, template_folder=str(PROJECT_ROOT / "templates"), static_folder=str(PROJECT_ROOT / "static"))
     app.config["SECRET_KEY"] = secret_key()
     app.config["MAX_CONTENT_LENGTH"] = 6 * 1024 * 1024
+    if os.getenv("TRUST_PROXY") == "1":
+        # Chạy sau Tailscale Funnel / Cloudflare Tunnel: lấy đúng IP + https của người dùng
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)  # type: ignore[method-assign]
+        app.config["SESSION_COOKIE_SECURE"] = True
+    register_auth(app)
 
     app.jinja_env.filters.update(
         money=format_money,
@@ -162,6 +169,8 @@ def create_app() -> Flask:
 
     @app.context_processor
     def inject_properties():
+        if g.get("user") is None:
+            return {"all_properties": [], "current_property": None, "show_property": False}
         try:
             properties = q.property_list()
         except pyodbc.Error:
@@ -179,6 +188,23 @@ def create_app() -> Flask:
     @app.errorhandler(pyodbc.Error)
     def handle_db_error(error: pyodbc.Error):
         return render_template("error.html", error=str(error)), 500
+
+    # ----- PWA: cài lên màn hình chính điện thoại -----
+
+    @app.get("/sw.js")
+    def service_worker():
+        # Service worker phải nằm ở gốc "/" để điều khiển được mọi trang
+        response = send_from_directory(app.static_folder, "sw.js", mimetype="application/javascript", max_age=0)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+    @app.get("/manifest.webmanifest")
+    def manifest():
+        return send_from_directory(app.static_folder, "manifest.webmanifest", mimetype="application/manifest+json", max_age=3600)
+
+    @app.get("/offline")
+    def offline_page():
+        return render_template("offline.html")
 
     @app.post("/select-property")
     def select_property():
