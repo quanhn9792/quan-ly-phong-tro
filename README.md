@@ -12,14 +12,14 @@ Mỗi tháng nhập chỉ số điện/nước, hệ thống tự tính tiền t
 
 | Màn hình | Chức năng |
 | --- | --- |
-| Tổng quan | Tình trạng từng phòng trong tháng (đã/chưa nhập hóa đơn), tổng cần thu |
+| Tổng quan | Tình trạng từng phòng trong tháng (đã/chưa nhập, đã/chưa thu), tổng cần thu / đã thu, khách báo đã chuyển khoản, còn nợ các tháng trước |
 | Nhập điện nước | Chọn phòng, chỉ số cũ tự lấy từ tháng trước, tạm tính trực tiếp, lưu xong tự chuyển phòng tiếp theo |
 | Báo cáo & gửi khách | Biểu đồ 12 tháng, chi tiết từng hóa đơn, tải ảnh (zip), xuất Excel (CSV), gửi email hàng loạt |
-| Gửi Zalo cả tháng | Bấm "Gửi Zalo" → ảnh hóa đơn được copy + mở khung chat `zalo.me/<số Zalo của khách>` → Ctrl+V, Enter. Đánh dấu phòng đã gửi |
+| Gửi Zalo cả tháng | Máy tính: ảnh hóa đơn được copy + mở khung chat `zalo.me/<số Zalo của khách>` → Ctrl+V, Enter. Điện thoại: bảng Chia sẻ kèm ảnh → chọn Zalo. Gửi link app cho khách, đánh dấu đã gửi / đã thu |
 | Nhà & căn hộ | Thêm/sửa nhà, loại hình, địa chỉ; ngừng quản lý nhà |
 | Phòng & căn | Thêm phòng, đổi tên/chuyển nhà, giá theo giai đoạn (tự tính lại hóa đơn trong giai đoạn) |
 | Khách thuê | Lượt thuê theo ngày vào/ra, giá thỏa thuận riêng |
-| Cài đặt | Đơn giá dự phòng theo tháng, QR ngân hàng, SMTP gửi email |
+| Cài đặt | Đơn giá dự phòng theo tháng, QR ngân hàng, số điện thoại chủ nhà (hiện trong app của khách), SMTP gửi email |
 | Thu tiền | Đánh dấu Đã thu / Chưa thu ngay trên Tổng quan, Báo cáo, Gửi Zalo, chi tiết hóa đơn; tổng đã thu / còn phải thu; danh sách **còn nợ các tháng trước** |
 | Tài khoản | Đổi mật khẩu ngay trên app (đăng xuất các thiết bị khác) |
 | Cài lên điện thoại | Mã QR mở app, hướng dẫn cài iPhone / Android, tự kiểm tra cấu hình tunnel |
@@ -87,7 +87,7 @@ Có thể đặt các biến dưới đây trong file `instance\web.env` (xem m�
 
 Cài PWA từ trình duyệt (bước 4 ở trên) là đủ dùng. Nếu muốn có file cài đặt / đưa lên store:
 
-- **Android (APK/AAB):** vào [pwabuilder.com](https://www.pwabuilder.com), nhập địa chỉ tunnel → *Package for stores* → *Android*. Tải về sẽ có file `.apk` (cài thử trực tiếp) và `.aab` (đưa lên Google Play), kèm `assetlinks.json`. Lấy `package_name` và `sha256_cert_fingerprints` trong đó, đặt vào biến môi trường `ANDROID_PACKAGE` và `ANDROID_CERT_SHA256` rồi khởi động lại web — app Android sẽ mở toàn màn hình, không còn thanh địa chỉ.
+- **Android (APK/AAB):** vào [pwabuilder.com](https://www.pwabuilder.com), nhập địa chỉ tunnel → *Package for stores* → *Android*. Tải về sẽ có file `.apk` (cài thử trực tiếp) và `.aab` (đưa lên Google Play), kèm `assetlinks.json`. Lấy `package_name` và `sha256_cert_fingerprints` trong đó, đặt vào `ANDROID_PACKAGE` và `ANDROID_CERT_SHA256` trong `instance\web.env` rồi khởi động lại web — app Android sẽ mở toàn màn hình, không còn thanh địa chỉ.
 - **iOS:** PWABuilder cũng xuất được project Xcode, nhưng build và đưa lên App Store cần máy Mac + tài khoản Apple Developer (99 USD/năm). Không có Mac thì dùng "Thêm vào MH chính" trong Safari — trải nghiệm gần như app thật.
 
 Lưu ý: app đóng gói vẫn chỉ là "vỏ" mở địa chỉ tunnel, nên địa chỉ tunnel phải cố định (Tailscale Funnel / tên miền Cloudflare).
@@ -131,7 +131,7 @@ templates/, static/   giao diện
 - `RoomMonthlyBills` – hóa đơn phòng/tháng, các cột tiền điện/nước được tính sẵn.
 - `PaymentSettings`, `BillDeliveryLogs` – cấu hình QR/SMTP và lịch sử gửi.
 - `AppUsers` – tài khoản đăng nhập của chủ nhà.
-- `Tenants.PortalToken` – mã link app của khách; `RoomMonthlyBills.PaidAt` – thời điểm đánh dấu đã thu tiền. Khi nâng cấp DB cũ, hóa đơn các tháng trước tháng hiện tại được coi là đã thu (trước đây chưa theo dõi).
+- `Tenants.PortalToken` – mã link app của khách; `RoomMonthlyBills.PaidAt` – thời điểm đánh dấu đã thu tiền; `RoomMonthlyBills.TenantReportedPaidAt` – lúc khách bấm "Tôi đã chuyển khoản"; `PaymentSettings.OwnerPhone` – số chủ nhà hiện trong app của khách. Khi nâng cấp DB cũ, hóa đơn các tháng trước tháng hiện tại được coi là đã thu (trước đây chưa theo dõi).
 - View `v_MonthlyRoomBills` – hóa đơn kèm **khách thuê của đúng tháng đó** (theo ngày vào/ra), không phải khách hiện tại.
 
 **Quy tắc tính giá** (ưu tiên từ trên xuống): giai đoạn đơn giá đặt tay của phòng → giá thỏa thuận của lượt thuê trong tháng → giá mặc định của phòng. Phòng không có khách trong tháng chỉ tính điện nước.
