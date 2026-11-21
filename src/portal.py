@@ -12,6 +12,8 @@ import secrets
 from io import BytesIO
 from typing import Any
 
+import pyodbc
+
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
 from . import auth
@@ -32,14 +34,27 @@ def tenant_or_404(token: str) -> Any:
     if not TOKEN_PATTERN.match(token):
         abort(404)
     tenant = q.tenant_by_portal_token(token)
-    if tenant is None:
+    # Khách đã ngưng thuê: link không còn hiệu lực (kể cả link tạo từ trước khi có quy tắc tự thu hồi)
+    if tenant is None or not tenant.IsCurrent:
         abort(404)
     return tenant
 
 
+def only_own_info(bill: Any, tenant: Any) -> Any:
+    """Hóa đơn tháng có đổi khách chứa tên/liên hệ của người khác: chỉ để lại tên của chính khách đang xem."""
+    bill.TenantNames = tenant.FullName
+    for column in ("TenantPhone", "TenantEmail", "TenantZaloPhone", "TenantZaloUserId", "TenantPortalToken"):
+        setattr(bill, column, None)
+    return bill
+
+
+def own_bills(tenant: Any) -> list[Any]:
+    return [only_own_info(bill, tenant) for bill in q.tenant_bills(tenant)]
+
+
 def tenant_bill_or_404(token: str, bill_id: int) -> tuple[Any, Any]:
     tenant = tenant_or_404(token)
-    bill = next((b for b in q.tenant_bills(tenant) if int(b.RoomMonthlyBillId) == bill_id), None)
+    bill = next((b for b in own_bills(tenant) if int(b.RoomMonthlyBillId) == bill_id), None)
     if bill is None:
         abort(404)
     return tenant, bill
@@ -58,14 +73,17 @@ def register_portal(app: Flask) -> None:
     def portal_contact():
         if not (request.endpoint or "").startswith("portal_"):
             return {}
-        settings = q.payment_settings()
+        try:
+            settings = q.payment_settings()
+        except pyodbc.Error:  # DB tắt: vẫn hiện được trang "Hệ thống đang bận"
+            return {"owner_phone": None}
         return {"owner_phone": normalize_phone(settings.OwnerPhone) if settings else None}
     auth.CSRF_EXEMPT_ENDPOINTS.update(CSRF_EXEMPT_ENDPOINTS)
 
     @app.get("/k/<token>")
     def portal_home(token: str):
         tenant = tenant_or_404(token)
-        bills = q.tenant_bills(tenant)
+        bills = own_bills(tenant)
         unpaid = [b for b in bills if not b.PaidAt]
         html = render_template(
             "portal_home.html",

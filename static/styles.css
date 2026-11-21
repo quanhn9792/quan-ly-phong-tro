@@ -511,6 +511,11 @@ input::placeholder, textarea::placeholder { color: #a3aeaa; }
 .overdue-amount { font-variant-numeric: tabular-nums; }
 .overdue-row .paid-toggle.is-paid { opacity: 0.6; }
 .overdue.reported { border-color: #cbd9f7; }
+.report-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 560px) {
+    .overdue-row .report-actions { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr; }
+    .overdue-row .report-actions .btn, .overdue-row .report-actions form { width: 100%; }
+}
 .overdue.reported .overdue-head { background: var(--blue-soft); }
 .overdue.reported .overdue-head h2, .overdue.reported .overdue-head strong { color: var(--blue); }
 @media (max-width: 560px) {

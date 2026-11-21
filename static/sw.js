@@ -13,17 +13,30 @@ const PRECACHE = [
     `/static/app.js?v=${VERSION}`,
     "/static/icons/icon-192.png",
 ];
+const MAX_PAGE_AGE_MS = 7 * 24 * 3600 * 1000; // bản lưu quá 7 ngày thì bỏ, không hiện nữa
 // Không lưu trang đăng nhập / trang lỗi
 const NO_PAGE_CACHE = ["/login", "/logout", "/offline", "/sw.js"];
+// Trang có dữ liệu nhạy cảm (CCCD, địa chỉ, cấu hình): không bao giờ lưu offline,
+// để lỡ mất điện thoại thì người khác cũng không đọc được khi tắt mạng
+const SENSITIVE_PREFIXES = ["/tenants", "/rooms", "/properties", "/payment-settings", "/account", "/install", "/months"];
+const isSensitive = (path) => SENSITIVE_PREFIXES.some((prefix) => path === prefix || path.startsWith(prefix + "/"));
 
 self.addEventListener("install", (event) => {
     event.waitUntil(caches.open(STATIC_CACHE).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()));
 });
 
+// Bản cũ có thể đã lưu trang nhạy cảm: xóa khi service worker mới kích hoạt
+const purgeSensitivePages = async () => {
+    const cache = await caches.open(PAGE_CACHE);
+    const keys = await cache.keys();
+    await Promise.all(keys.filter((req) => isSensitive(new URL(req.url).pathname)).map((req) => cache.delete(req)));
+};
+
 self.addEventListener("activate", (event) => {
     event.waitUntil(
         caches.keys()
             .then((keys) => Promise.all(keys.filter((key) => key !== STATIC_CACHE && key !== PAGE_CACHE).map((key) => caches.delete(key))))
+            .then(purgeSensitivePages)
             .then(() => self.clients.claim())
     );
 });
@@ -44,7 +57,12 @@ const fromPageCache = async (request) => {
     const cache = await caches.open(PAGE_CACHE);
     const cached = await cache.match(request, { ignoreVary: true });
     if (!cached) return caches.match("/offline");
-    const savedAt = new Date(Number(cached.headers.get("X-Saved-At")) || Date.now());
+    const savedMs = Number(cached.headers.get("X-Saved-At")) || 0;
+    if (Date.now() - savedMs > MAX_PAGE_AGE_MS) {
+        await cache.delete(request, { ignoreVary: true });
+        return caches.match("/offline");
+    }
+    const savedAt = new Date(savedMs);
     const stamp = savedAt.toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" });
     const html = (await cached.text()).replace(/<body([^>]*)>/, (m) => m + offlineBanner(stamp));
     return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } });
@@ -70,7 +88,7 @@ self.addEventListener("fetch", (event) => {
     if (url.origin !== self.location.origin) return;
 
     if (request.mode === "navigate") {
-        if (NO_PAGE_CACHE.includes(url.pathname)) {
+        if (NO_PAGE_CACHE.includes(url.pathname) || isSensitive(url.pathname)) {
             event.respondWith(fetch(request).catch(() => caches.match("/offline")));
             return;
         }
