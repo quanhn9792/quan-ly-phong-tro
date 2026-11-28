@@ -46,6 +46,29 @@
         if (event.key === "Escape") setMenu(false);
     });
 
+    // ----- Chọn giao diện: Tự động / Sáng / Kính mờ / Tối (lưu trên máy này) -----
+    const markTheme = () => {
+        const pref = document.documentElement.getAttribute("data-theme-pref") || "auto";
+        document.querySelectorAll("[data-theme-set]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.themeSet === pref)));
+    };
+    markTheme();
+    document.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-theme-set]");
+        if (!button || !window.setThemePref) return;
+        const value = button.dataset.themeSet;
+        const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (document.startViewTransition && !calm) {
+            // Đổi màu cả trang bằng hiệu ứng mờ dần (không dùng hiệu ứng chuyển trang)
+            const root = document.documentElement;
+            root.classList.add("vt-theme");
+            const t = document.startViewTransition(() => { window.setThemePref(value); markTheme(); });
+            t.finished.finally(() => root.classList.remove("vt-theme"));
+        } else {
+            window.setThemePref(value);
+            markTheme();
+        }
+    });
+
     // ----- Copy / chia sẻ link (link app của khách) -----
     const flashToast = (text) => {
         let box = document.getElementById("app-toast");

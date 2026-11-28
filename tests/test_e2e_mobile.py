@@ -145,3 +145,29 @@ def test_motion_respects_reduced_motion(phone, base_url):
     value = calm.locator(".stat-value").first
     assert value.get_attribute("aria-label") is None  # motion.js không chạy đếm
     assert calm.evaluate("getComputedStyle(document.querySelector('.stats > *')).animationName") == "none"
+
+
+def test_theme_picker_and_auto_dark(phone, base_url):
+    """Chọn giao diện trong menu, nhớ sau khi tải lại; "Tự động" theo chế độ tối của điện thoại."""
+    browser, device = phone
+    page = browser.new_context(**device, color_scheme="light").new_page()
+    login(page, base_url)
+    attrs = "[document.documentElement.dataset.theme, document.documentElement.hasAttribute('data-glass')]"
+    assert page.evaluate(attrs) == ["light", False]
+    page.locator("[data-menu-toggle]").tap()
+    page.locator('[data-theme-set="dark"]').tap()
+    page.wait_for_timeout(500)
+    assert page.evaluate(attrs) == ["dark", True]
+    assert page.locator('[data-theme-set="dark"]').get_attribute("aria-checked") == "true"
+    page.reload()
+    assert page.evaluate(attrs) == ["dark", True]
+    page.locator("[data-menu-toggle]").tap()
+    page.locator('[data-theme-set="glass"]').tap()
+    page.wait_for_timeout(500)
+    assert page.evaluate(attrs) == ["light", True]
+    assert no_overflow(page)
+
+    auto = browser.new_context(**device, color_scheme="dark").new_page()
+    login(auto, base_url)
+    assert auto.evaluate(attrs) == ["dark", True]  # chưa chọn gì => theo điện thoại
+    assert auto.evaluate("document.querySelector('meta[name=theme-color]').content") == "#171412"

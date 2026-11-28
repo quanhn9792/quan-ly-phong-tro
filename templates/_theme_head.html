@@ -1,0 +1,24 @@
+{# Áp giao diện trước khi trang hiện ra (không chớp màu). Lựa chọn lưu riêng trên từng máy:
+   auto = theo điện thoại (tối → "Tối kính mờ", sáng → "Sáng"), light, glass (sáng kính mờ), dark. #}
+<script>
+(function () {
+    var root = document.documentElement, pref = "auto";
+    try { pref = localStorage.getItem("theme") || "auto"; } catch (e) {}
+    var media = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+    function apply() {
+        var dark = pref === "dark" || (pref === "auto" && media && media.matches);
+        root.setAttribute("data-theme", dark ? "dark" : "light");
+        if (dark || pref === "glass") root.setAttribute("data-glass", ""); else root.removeAttribute("data-glass");
+        root.setAttribute("data-theme-pref", pref);
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute("content", dark ? "#171412" : pref === "glass" ? "#eaf0ee" : "#0f766e");
+    }
+    apply();
+    if (media && media.addEventListener) media.addEventListener("change", apply);
+    window.setThemePref = function (value) {
+        pref = value;
+        try { localStorage.setItem("theme", value); } catch (e) {}
+        apply();
+    };
+})();
+</script>
