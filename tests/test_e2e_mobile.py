@@ -47,6 +47,8 @@ def login(page, base_url):
     page.fill("input[name=username]", "admin")
     page.fill("input[name=password]", PASSWORD)
     page.click("button[type=submit]")
+    # Chờ hẳn tới khi rời trang đăng nhập (networkidle có thể xong trước khi chuyển trang)
+    page.wait_for_url(lambda url: "/login" not in url)
     page.wait_for_load_state("networkidle")
 
 
@@ -126,3 +128,20 @@ def test_tenant_reports_payment_on_phone(phone, base_url):
         page.wait_for_load_state("networkidle")
     assert "chờ chủ nhà xác nhận" in page.content()
     assert q.get_bill(bill.RoomMonthlyBillId).TenantReportedPaidAt is not None
+
+
+def test_motion_respects_reduced_motion(phone, base_url):
+    """Bình thường số tiền đếm tăng dần; máy bật "Giảm chuyển động" thì hiện ngay số cuối, không hiệu ứng."""
+    browser, device = phone
+    page = browser.new_context(**device).new_page()
+    login(page, base_url)
+    final = page.locator(".stat-value").first.get_attribute("aria-label")
+    assert final and any(ch.isdigit() for ch in final)
+    page.wait_for_timeout(1200)
+    assert page.locator(".stat-value").first.inner_text().replace("\n", " ").startswith(final.split(" ")[0])
+
+    calm = browser.new_context(**device, reduced_motion="reduce").new_page()
+    login(calm, base_url)
+    value = calm.locator(".stat-value").first
+    assert value.get_attribute("aria-label") is None  # motion.js không chạy đếm
+    assert calm.evaluate("getComputedStyle(document.querySelector('.stats > *')).animationName") == "none"

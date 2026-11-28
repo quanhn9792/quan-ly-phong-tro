@@ -11,6 +11,7 @@ const PRECACHE = [
     "/offline",
     `/static/styles.css?v=${VERSION}`,
     `/static/app.js?v=${VERSION}`,
+    `/static/motion.js?v=${VERSION}`,
     "/static/icons/icon-192.png",
 ];
 const MAX_PAGE_AGE_MS = 7 * 24 * 3600 * 1000; // bản lưu quá 7 ngày thì bỏ, không hiện nữa

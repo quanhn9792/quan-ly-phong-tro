@@ -136,6 +136,7 @@
         {% block content %}{% endblock %}
     </main>
 
+    <script src="{{ url_for('static', filename='motion.js') }}?v={{ asset_v() }}"></script>
     <script src="{{ url_for('static', filename='app.js') }}?v={{ asset_v() }}"></script>
     {% block scripts %}{% endblock %}
 </body>

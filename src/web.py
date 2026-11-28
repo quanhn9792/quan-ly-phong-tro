@@ -170,7 +170,7 @@ class HttpsAwareSessionInterface(SecureCookieSessionInterface):
 def asset_version(static_folder: str) -> str:
     """Mã phiên bản file tĩnh = hash nội dung CSS/JS: sửa file là điện thoại tự tải bản mới, không cần đổi tay ?v=."""
     digest = hashlib.sha256()
-    for name in ("styles.css", "app.js", "zalo.js", "sw.js"):
+    for name in ("styles.css", "app.js", "motion.js", "zalo.js", "sw.js"):
         path = Path(static_folder) / name
         if path.exists():
             digest.update(path.read_bytes())
